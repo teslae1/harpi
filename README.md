@@ -43,7 +43,7 @@ harpi ls example.harpi.yml
 ```
 Run the script 
 ```
-harpi run example.harpi.yml -v
+harpi run example.harpi.yml 
 ```
 ## Saving and using response data
 It is possible to assign response data to a variable for later use:
