@@ -1,0 +1,23 @@
+
+variables:
+  baseUrl: required
+  id: #set by first response
+
+requests:
+  - url: "$(baseUrl)/item"
+    method: post
+    asserts:  
+      statusCodeEquals: 200
+    javascriptAssignments:
+      - name: "Save id"
+        code: "setSessionVariable('id', response.id)"
+
+  - url: "$(baseUrl)/item/$(id)"
+    method: get
+    asserts:  
+      statusCodeEquals: 200
+
+  - url: "$(baseUrl)/item/$(id)"
+    method: delete
+    asserts:  
+      statusCodeEquals: 200

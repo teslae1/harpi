@@ -1,0 +1,20 @@
+variables:
+  baseAddress: "https://jsonplaceholder.typicode.com/"
+  userId: #assigned by first response
+  todoId: 48
+
+requests:
+  - url: "$(baseAddress)todos/$(todoId)"
+    name: "Get the first todo"
+    method: "get"
+    asserts:
+      statusCodeEquals: 200
+    javascriptAssignments:
+      - name: "Save the user id"
+        code: "setSessionVariable('userId', response.userId)"
+
+  - url: "$(baseAddress)users/$(userId)"
+    name: "Verify corresponding user exists"
+    method: "get"
+    asserts:
+      statusCodeEquals: 200

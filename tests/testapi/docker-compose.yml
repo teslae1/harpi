@@ -1,0 +1,23 @@
+
+services:
+  testapi:
+    build: 
+      context: ./
+      dockerfile: Dockerfile
+    image: testapi
+    command: node index.js 
+    expose:
+      - 8080
+
+  harpitests:
+    image: harpitests
+    build:
+      context: ../../
+      dockerfile: tests/testapi/HarpiDockerfile
+    depends_on:
+      - testapi
+    command: /bin/sh -c "cd /usr/src/harpi/tests && harpi run test -b --variables baseUrl=http://testapi:8080"
+
+  
+    
+
