@@ -35,7 +35,7 @@ npm install harpi_cli -g
 ## Example
 Download the example script to your current directory
 ```
-curl -O https://github.com/teslae1/harpi/example.harpi.yml
+curl -O https://raw.githubusercontent.com/teslae1/harpi/main/example.harpi.yml
 ```
 List the requests of the script
 ```
