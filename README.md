@@ -176,3 +176,31 @@ requests:
       anotherDateProperty: "$(dateFiveMinutesInFuture)"
 ```
 
+## Using harpi as api content response comparison
+Harpi is intended to work with simple datatypes for dynamically assigned values and comparisons
+but does in some ways support comparing entire api responses by converting the responses 
+into simple datatypes and then comparing them. An example using base64 format to compare 
+an api's response exactly matches that of another:
+```yml
+variables:
+  api1Url: "https://api1.com"
+  api2Url: "https://api2.com"
+  
+requests:
+  - url: "$(api1Url)/search?query=123"
+    method: get
+    asserts:
+      statusCodeEquals: 200
+    javascriptAssignments:
+      - code: "setSessionVariable('response', btoa(JSON.stringify(response)))"
+        name: "saving first response as base64"
+
+  - url: "$(api2Url)/search?query=123"
+    method: get
+    asserts:
+      statusCodeEquals: 200
+      javascriptAsserts:
+        - code: "btoa(JSON.stringify(response)) == '$(response)'"
+          name: "responses are exactly the same"
+```
+
