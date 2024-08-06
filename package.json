@@ -8,7 +8,7 @@
   },
   "scripts": {
     "test": "jest",
-    "integrationtest": "docker-compose -f tests/testapi/docker-compose.yml up --build --abort-on-container-exit"
+    "integrationtest": "docker compose -f tests/testapi/docker-compose.yml up --build --abort-on-container-exit"
   },
   "repository": {
     "type": "git",

@@ -36,25 +36,22 @@ describe('fileHandler.js', () =>{
 	})
 
 	describe('findHarpiYmlFile tests', () => {
-    	it("Searches dir recursive for file", async () => {
+    	it("Searches only immediate dir for file", async () => {
 			const fileMatch = "test.harpi.yml";
 			const fileNameToSearch = "test.harpi.yml";
-			const dirItemContainingFile = "App";
+			const dirInCurrentDir = "nested";
 
-			const currentDirItems = [dirItemContainingFile];
+			const currentDirItems = [dirInCurrentDir, fileMatch];
     		const currentDir = process.cwd();
 			fs.readdirSync = jest.fn(dir => {
 				if(dir == currentDir){
 					return currentDirItems;
 				}
-				if(dir == joinPathSegments(currentDir, dirItemContainingFile)){
-					return [fileMatch];
-				}
 			throw "Unexpected value during call of readdirSync";
 			});
 
 			fs.statSync = jest.fn(path => {
-				if(path == joinPathSegments(currentDir, dirItemContainingFile)){
+				if(path == joinPathSegments(currentDir, dirInCurrentDir)){
 					return {
 						isDirectory: function()  {return true;}
 					};
@@ -68,7 +65,7 @@ describe('fileHandler.js', () =>{
 
 			const actFileMatch = fileHandler.findHarpiYmlFile(fileNameToSearch);
 
-			const expTotalFilePath = joinPathSegments(currentDir, dirItemContainingFile, fileMatch);
+			const expTotalFilePath = joinPathSegments(currentDir, fileMatch);
 			expect(actFileMatch)
 			.toBe(expTotalFilePath);
 		});

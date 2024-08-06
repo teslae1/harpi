@@ -1,9 +1,11 @@
 name: CI test
 run-name: event ${{ github.event_name }} triggered run of integration test
-on: [push]
+on: 
+  push:
+  workflow_dispatch:
 jobs:
   unit-tests:
-    runs-on: windows-latest
+    runs-on: windows-2019
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js
@@ -21,7 +23,7 @@ jobs:
       - name: run unit tests
         run: npm test
   cmd-tool-test-against-nodeapi:
-    runs-on: ubuntu-latest
+    runs-on: 	ubuntu-20.04
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js
@@ -34,5 +36,5 @@ jobs:
           node-version: "16.x"
       - name: npm install
         run: npm install -g 
-      - name: run integration tests
+      - name: run integration tests 
         run: npm run integrationtest
