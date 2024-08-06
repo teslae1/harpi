@@ -36,5 +36,5 @@ jobs:
           node-version: "16.x"
       - name: npm install
         run: npm install -g 
-      - name: run integration tests CHANGED
+      - name: run integration tests 
         run: npm run integrationtest
