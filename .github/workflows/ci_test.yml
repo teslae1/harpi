@@ -1,6 +1,6 @@
 name: CI test
 run-name: event ${{ github.event_name }} triggered run of integration test
-on: [push]
+on: [push,workflow_dispatch]
 jobs:
   unit-tests:
     runs-on: windows-latest
