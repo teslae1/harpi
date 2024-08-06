@@ -17,10 +17,7 @@ function searchDir(dir, harpiYmlFileName) {
         const filePath = joinPathSegments(dir, file);
         const stat = fs.statSync(filePath);
         if (stat.isDirectory()) {
-            const harpiYmlFile = searchDir(filePath, harpiYmlFileName);
-            if (harpiYmlFile != null) {
-                return harpiYmlFile;
-            }
+            continue;
         } else if (file == harpiYmlFileName) {
             return filePath;
         }
