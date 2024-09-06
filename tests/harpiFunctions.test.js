@@ -49,6 +49,27 @@ describe('harpiFunctions.js', () =>{
 					const phoneNumbVal = data["phonenumb"];
 					expect(phoneNumbVal).toEqual("+12345678")
 				}
+			},
+			{
+				name: "phonenumber +123 should be removed if jsonbody usage as int(without quote encasing)",
+				yml: 
+				"variables: \n" +
+				"  phonenumb: \"+12345678\"\n" + 
+				"\n" + 
+				"requests:\n" + 
+				"  - url: \"https://t.com\"\n" +
+				"    method: post\n" +
+				"    jsonBody:\n" + 
+				"      phonenumb: $(phonenumb)\n",
+				assert: (requests, name) => {
+					if(requests.length != 1){
+						throw new Error("Expected exactly 1 request: " + name);
+					}
+					const req = requests[0];
+					const data = req.data;
+					const phoneNumbVal = data["phonenumb"];
+					expect(phoneNumbVal).toEqual(12345678)
+				}
 			}
 		]
 
