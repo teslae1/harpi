@@ -51,7 +51,7 @@ describe('harpiFunctions.js', () =>{
 				}
 			},
 			{
-				name: "phonenumber +123 should be removed if jsonbody usage as int(without quote encasing)",
+				name: "phonenumber 123 should be removed if jsonbody usage as int(without quote encasing)",
 				yml: 
 				"variables: \n" +
 				"  phonenumb: 12345678\n" + 
