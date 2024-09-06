@@ -30,27 +30,6 @@ describe('harpiFunctions.js', () =>{
 	it("Should send expected requests", async () => {
 		tests = [
 			{
-				name: "phonenumber +123 should not remove + on jsonbody usage",
-				yml: 
-				"variables: \n" +
-				"  phonenumb: \"+12345678\"\n" + 
-				"\n" + 
-				"requests:\n" + 
-				"  - url: \"https://t.com\"\n" +
-				"    method: post\n" +
-				"    jsonBody:\n" + 
-				"      phonenumb: \"$(phonenumb)\"\n",
-				assert: (requests, name) => {
-					if(requests.length != 1){
-						throw new Error("Expected exactly 1 request: " + name);
-					}
-					const req = requests[0];
-					const data = req.data;
-					const phoneNumbVal = data["phonenumb"];
-					expect(phoneNumbVal).toEqual("+12345678")
-				}
-			},
-			{
 				name: "phonenumber 123 should be removed if jsonbody usage as int(without quote encasing)",
 				yml: 
 				"variables: \n" +
@@ -91,6 +70,24 @@ describe('harpiFunctions.js', () =>{
 					const headers = req.headers;
 					const val = headers["time"];
 					expect(val).toEqual('minute: 1');
+				}
+			},
+			{
+				name: "str variable with numbers should not wrap in quotes everywhere",
+				yml: 
+				"variables: \n" +
+				"  postalCode: \"8240\"\n" + 
+				"\n" + 
+				"requests:\n" + 
+				"  - url: \"https://t.com/code=$(postalCode)\"\n" +
+				"    method: get\n",
+				assert: (requests, name) => {
+					if(requests.length != 1){
+						throw new Error("Expected exactly 1 request: " + name);
+					}
+					const req = requests[0];
+					expect(req.url).toEqual("https://t.com/code=8240");
+
 				}
 			},
 			{

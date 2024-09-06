@@ -165,11 +165,7 @@ function addParamVariables(variables, cliVariables){
             for(var i = 0; i < keyValuePairsSeparatedByEquals.length;i++){
                 const keyValStr = keyValuePairsSeparatedByEquals[i].split('=');
                 const key = keyValStr[0];
-                let val = keyValStr.slice(1).join('=');
-                if (strIsValidNumber(val)) {
-                    val = Number(val);
-                }
-                variables[key] = val;
+                variables[key] = keyValStr.slice(1).join('=');
                 keysFoundInCliParams.push(key);
             }
         }
@@ -304,11 +300,7 @@ function getHarpiFileObj(harpiYmlFile,
     }
     for(var i = 0; i < keys.length;i++){
         const key = keys[i];
-        let val = variables[key];
-        if(shouldEncaseInQuotes(val)){
-            val = "\""+val+"\"";
-        }
-        ymlStr = ymlStr.replace(new RegExp("\\$\\(" + key + "\\)", "g"), val);
+        ymlStr = ymlStr.replace(new RegExp("\\$\\(" + key + "\\)", "g"), variables[key]);
     }
     const obj = jsYml.load(ymlStr);
     obj.headers = obj.headers;
@@ -317,26 +309,6 @@ function getHarpiFileObj(harpiYmlFile,
     }
     ensureValidRequests(obj.requests);
     return obj;
-}
-
-function shouldEncaseInQuotes(val)
-{
-    if(typeof val !== 'string'){
-        return false;
-    }
-
-    return strIsValidNumber(val);
-}
-
-function strIsValidNumber(val)
-{
-    if(isNaN(parseFloat(val))){
-        return false;
-    }
-    if(!isFinite(val)){
-        return false;
-    }
-    return true;
 }
 
 function ensureValidRequests(requests)
