@@ -98,7 +98,7 @@ describe('fileHandler.js', () =>{
 			var fileName = joinPathSegments(dir, "test.harpi.yml");
 			var expContent = "harpiconfig/";
 
-			fs.existsSync = jest.fn(gitIgnoreDir => false);
+			fs.existsSync = jest.fn(any => false);
 			var filesCreated = [];
 			fs.writeFileSync = jest.fn(
 				(path, content) => filesCreated.push({

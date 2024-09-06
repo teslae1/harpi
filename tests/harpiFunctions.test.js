@@ -13,6 +13,8 @@ let harpiYml =
     "    method: get";
 
 
+
+
 //mock the axios function to when called with options where method is get and data is "myjson" return a result async
 jest.mock('axios');
 
@@ -23,6 +25,54 @@ jest.mock('../FileHandler', () => ({
 describe('harpiFunctions.js', () =>{
 	beforeEach(() => {
 		jest.resetAllMocks();
+	});
+
+	it("Should send expected requests", async () => {
+		tests = [
+			{
+				name: "phonenumber +123 should not remove + on jsonbody usage",
+				yml: 
+				"variables: \n" +
+				"  phonenumb: \"+12345678\"\n" + 
+				"\n" + 
+				"requests:\n" + 
+				"  - url: \"https://t.com\"\n" +
+				"    method: post\n" +
+				"    jsonBody:\n" + 
+				"      phonenumb: \"$(phonenumb)\"\n",
+				assert: (requests, name) => {
+					if(requests.length != 1){
+						throw new Error("Expected exactly 1 request: " + name);
+					}
+					const req = requests[0];
+					const data = req.data;
+					const phoneNumbVal = data["phonenumb"];
+					expect(phoneNumbVal).toEqual("+12345678")
+				}
+			}
+		]
+
+		fileHandler.addFileExtensionIfNone = jest.fn(file => file);
+		fileHandler.findHarpiYmlFile = jest.fn(file => file);
+		fileHandler.saveNewSession = jest.fn();
+
+		tests.forEach(async test => {
+			const yml = test.yml;
+			fileHandler.readFileSync = jest.fn(file => yml);
+        	const harpiYmlFile = "testfile";
+        	const requestId = undefined;
+        	const verbose = false;
+        	const variables = "val";
+        	const outputFile = undefined; 
+			var requests = [];
+			axios.mockImplementation(options => {
+				requests.push(options);
+			}); 
+
+			await run(harpiYmlFile, requestId, verbose,variables,outputFile);
+
+			test.assert(requests, test.name);
+		});
 	});
 
     it("Should exit zero when success", async () => {
