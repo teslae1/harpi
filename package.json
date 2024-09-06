@@ -1,6 +1,6 @@
 {
   "name": "harpi_cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "\"# harpi\"",
   "main": "index.js",
   "bin": {

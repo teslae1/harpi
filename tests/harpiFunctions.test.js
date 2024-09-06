@@ -93,6 +93,29 @@ describe('harpiFunctions.js', () =>{
 					expect(val).toEqual('minute: 1');
 				}
 			},
+			{
+				name: "int input from command line should be detected and used as int",
+				cliParams: "minute=1",
+				yml: 
+				"variables: \n" +
+				"  minute: required\n" + 
+				"\n" + 
+				"headers:\n"+
+				"  time: \"minute: $(minute)\""+
+				  "\n"+
+				"requests:\n" + 
+				"  - url: \"https://t.com\"\n" +
+				"    method: get\n",
+				assert: (requests, name) => {
+					if(requests.length != 1){
+						throw new Error("Expected exactly 1 request: " + name);
+					}
+					const req = requests[0];
+					const headers = req.headers;
+					const val = headers["time"];
+					expect(val).toEqual('minute: 1');
+				}
+			},
 		]
 
 		fileHandler.addFileExtensionIfNone = jest.fn(file => file);
@@ -105,14 +128,14 @@ describe('harpiFunctions.js', () =>{
         	const harpiYmlFile = "testfile";
         	const requestId = undefined;
         	const verbose = false;
-        	const variables = "val";
         	const outputFile = undefined; 
 			var requests = [];
 			axios.mockImplementation(options => {
 				requests.push(options);
 			}); 
+			const cliParams = test.cliParams;
 
-			await run(harpiYmlFile, requestId, verbose,variables,outputFile,null,null,testLogFunction);
+			await run(harpiYmlFile, requestId, verbose,cliParams,outputFile,null,null,testLogFunction);
 
 			test.assert(requests, test.name);
 		});

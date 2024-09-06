@@ -165,7 +165,11 @@ function addParamVariables(variables, cliVariables){
             for(var i = 0; i < keyValuePairsSeparatedByEquals.length;i++){
                 const keyValStr = keyValuePairsSeparatedByEquals[i].split('=');
                 const key = keyValStr[0];
-                variables[key] = keyValStr.slice(1).join('=');
+                let val = keyValStr.slice(1).join('=');
+                if (strIsValidNumber(val)) {
+                    val = Number(val);
+                }
+                variables[key] = val;
                 keysFoundInCliParams.push(key);
             }
         }
