@@ -54,7 +54,7 @@ describe('harpiFunctions.js', () =>{
 				name: "phonenumber +123 should be removed if jsonbody usage as int(without quote encasing)",
 				yml: 
 				"variables: \n" +
-				"  phonenumb: \"+12345678\"\n" + 
+				"  phonenumb: 12345678\n" + 
 				"\n" + 
 				"requests:\n" + 
 				"  - url: \"https://t.com\"\n" +
@@ -70,7 +70,29 @@ describe('harpiFunctions.js', () =>{
 					const phoneNumbVal = data["phonenumb"];
 					expect(phoneNumbVal).toEqual(12345678)
 				}
-			}
+			},
+			{
+				name: "int input passed into part of header should not be encased in quotes",
+				yml: 
+				"variables: \n" +
+				"  minute: 1\n" + 
+				"\n" + 
+				"headers:\n"+
+				"  time: \"minute: $(minute)\""+
+				  "\n"+
+				"requests:\n" + 
+				"  - url: \"https://t.com\"\n" +
+				"    method: get\n",
+				assert: (requests, name) => {
+					if(requests.length != 1){
+						throw new Error("Expected exactly 1 request: " + name);
+					}
+					const req = requests[0];
+					const headers = req.headers;
+					const val = headers["time"];
+					expect(val).toEqual('minute: 1');
+				}
+			},
 		]
 
 		fileHandler.addFileExtensionIfNone = jest.fn(file => file);
@@ -90,7 +112,7 @@ describe('harpiFunctions.js', () =>{
 				requests.push(options);
 			}); 
 
-			await run(harpiYmlFile, requestId, verbose,variables,outputFile);
+			await run(harpiYmlFile, requestId, verbose,variables,outputFile,null,null,testLogFunction);
 
 			test.assert(requests, test.name);
 		});
@@ -107,7 +129,7 @@ describe('harpiFunctions.js', () =>{
         const variables = "val";
         const outputFile = undefined; 
 
-      	let exitCode = await run(harpiYmlFile, requestId, verbose, variables, outputFile);
+      	let exitCode = await run(harpiYmlFile, requestId, verbose, variables, outputFile, null,null,testLogFunction);
 
 		expect(exitCode)
 		.toEqual(0);
@@ -146,7 +168,9 @@ describe('harpiFunctions.js', () =>{
 			verbose, 
 			variables, 
 			outputFile, 
-			bail);
+			bail,
+			null,
+			testLogFunction);
 
 		expect(exitCode)
 		.toEqual(1);
@@ -156,7 +180,7 @@ describe('harpiFunctions.js', () =>{
 		fileHandler.addFileExtensionIfNone = jest.fn();
 		fileHandler.findHarpiYmlFile = jest.fn();
 
-		let exitCode = await run("filename");
+		let exitCode = await run("filename",null,null,null,null,null,null,testLogFunction);
 
 		expect(exitCode)
 		.toEqual(1);
@@ -194,7 +218,7 @@ describe('harpiFunctions.js', () =>{
 			requests.push(options);
 		}); 
 
-		await run(fileName, requestId, verbose, variables, outfile, bail);
+		await run(fileName, requestId, verbose, variables, outfile, bail, null,testLogFunction);
 
 		const expHeaderVal = "Bearer " + expValue;
 		const actHeaderVal = requests[0].headers["Authorization"];
@@ -220,7 +244,7 @@ describe('harpiFunctions.js', () =>{
         const variables = "val";
         const outputFile = "logfile"; 
 
-      	await run(harpiYmlFile, requestId, verbose, variables, outputFile);
+      	await run(harpiYmlFile, requestId, verbose, variables, outputFile, null,null, testLogFunction);
 
 		expect(fileHandler.writeLogFileSync).toHaveBeenCalledTimes(1);
 		expect(fileHandler.writeLogFileSync.mock.calls[0][0]).toEqual(outputFile);
@@ -237,7 +261,7 @@ describe('harpiFunctions.js', () =>{
         const variables = "val";
         const outputFile = undefined; 
 
-      	await run(harpiYmlFile, requestId, verbose, variables, outputFile);
+      	await run(harpiYmlFile, requestId, verbose, variables, outputFile, null,null,testLogFunction);
 
 		expect(fileHandler.addFileExtensionIfNone).toHaveBeenCalledTimes(1);
 		expect(fileHandler.addFileExtensionIfNone).toHaveBeenCalledWith(harpiYmlFile);
@@ -247,3 +271,6 @@ describe('harpiFunctions.js', () =>{
 	});
 
 });
+
+function testLogFunction(msg){
+}

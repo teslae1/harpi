@@ -16,7 +16,11 @@ async function run(harpiYmlFileName,
     variables, 
     outputFile, 
     bail,
-    insecure) {
+    insecure,
+    logFunctionParam) {
+    if (logFunctionParam != null) {
+        logFunction = logFunctionParam;
+    }
 
 	harpiYmlFileName = fileHandler.addFileExtensionIfNone(harpiYmlFileName);
 	const harpiYmlFile = fileHandler.findHarpiYmlFile(harpiYmlFileName);
@@ -31,7 +35,7 @@ async function run(harpiYmlFileName,
     log("\nstarted new run for " + harpiYmlFileName + " at " + new Date().toLocaleString());
     let harpiYml = getHarpiFileObj(harpiYmlFile, variables, shouldCreateNewSession, harpiYmlDir, harpiYmlFileName, true);
     if(harpiYml == undefined){
-        console.log("Error while building harpi file obj");
+        log("Error while building harpi file obj");
         return failedExitCode;
     }
     let headers = harpiYml.headers;
@@ -296,7 +300,11 @@ function getHarpiFileObj(harpiYmlFile,
     }
     for(var i = 0; i < keys.length;i++){
         const key = keys[i];
-        ymlStr = ymlStr.replace(new RegExp("\\$\\(" + key + "\\)", "g"), variables[key]);
+        let val = variables[key];
+        if(shouldEncaseInQuotes(val)){
+            val = "\""+val+"\"";
+        }
+        ymlStr = ymlStr.replace(new RegExp("\\$\\(" + key + "\\)", "g"), val);
     }
     const obj = jsYml.load(ymlStr);
     obj.headers = obj.headers;
@@ -305,6 +313,26 @@ function getHarpiFileObj(harpiYmlFile,
     }
     ensureValidRequests(obj.requests);
     return obj;
+}
+
+function shouldEncaseInQuotes(val)
+{
+    if(typeof val !== 'string'){
+        return false;
+    }
+
+    return strIsValidNumber(val);
+}
+
+function strIsValidNumber(val)
+{
+    if(isNaN(parseFloat(val))){
+        return false;
+    }
+    if(!isFinite(val)){
+        return false;
+    }
+    return true;
 }
 
 function ensureValidRequests(requests)
@@ -695,8 +723,9 @@ function getFileName(filePath){
 }
 
 let logStr = "";
+let logFunction = (msg) => {console.log(msg)};
 function log(msg){
-    console.log(msg);
+    logFunction(msg);
     logStr += msg + "\n";
 }
 
