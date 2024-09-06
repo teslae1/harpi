@@ -81,13 +81,8 @@ function getSessionFilePath(harpiFileDir, harpiFileName){
         harpiFileName);
 }
 
-const harpiGitIgnoreFileName = "harpi.gitignore";
 const harpiDirName = "harpiconfig";
 function ensureSessionFileStructureExists(harpiFileDir){
-    const gitIgnoreFilePath = joinPathSegments(harpiFileDir, harpiGitIgnoreFileName);
-    if(!fs.existsSync(gitIgnoreFilePath)){
-        fs.writeFileSync(gitIgnoreFilePath, harpiDirName + "/");
-    }
 	var harpiDir = joinPathSegments(harpiFileDir, harpiDirName);
     if(!fs.existsSync(harpiDir)){
         fs.mkdirSync(harpiDir);
