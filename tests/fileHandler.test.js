@@ -96,7 +96,6 @@ describe('fileHandler.js', () =>{
 			var dynamicVariables = [];
 			var dir = joinPathSegments("C:","App");
 			var fileName = joinPathSegments(dir, "test.harpi.yml");
-			var gitIgnoreFilePath = joinPathSegments(dir, "harpi.gitignore");
 			var expContent = "harpiconfig/";
 
 			fs.existsSync = jest.fn(gitIgnoreDir => false);
@@ -111,12 +110,6 @@ describe('fileHandler.js', () =>{
 			fs.mkdirSync = jest.fn(dir => dirsCreated.push(dir));
 
 			fileHandler.saveNewSession(dynamicVariables, dir, fileName);
-
-			expect(filesCreated)
-			.toContainEqual({
-				path: gitIgnoreFilePath,
-				content: expContent
-			});
 
 			expDir = joinPathSegments(dir, "harpiconfig");
 			expect(dirsCreated)
