@@ -230,7 +230,8 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                success = safeEval(jsAssert.code, {response: response});
+                //success = safeEval(jsAssert.code, {response: response});
+                success = eval(jsAssert.code);
             }
             catch(e){
                 console.log(e);
@@ -255,7 +256,7 @@ const executableAssertMethods = {
 
 function safeEval(code, params)
 {
-    const func = new Function(...Object.keys(params), `"use strict"; return (${code});`)
+    const func = new Function(...Object.keys(params), ` return (${code});`)
     return func(...Object.values(params));
 }
 
