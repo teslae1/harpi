@@ -222,8 +222,7 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                //success = localeval(jsAssert.code, {response: response});
-                success = eval(jsAssert.code);
+                success = localeval(jsAssert.code, {response: response});
             }
             catch(e){
                 results.push({
