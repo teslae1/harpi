@@ -3,7 +3,6 @@ const fileHandler = require('./FileHandler');
 const jsYml = require('js-yaml');
 const https = require("https");
 const axios = require('axios');
-const localeval = require('localeval');
 const { v4: uuidv4 } = require('uuid');
 const qs = require('qs');
 
@@ -230,7 +229,7 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                success = safeEval(jsAssert.code, {response: response});
+                success = eval(jsAssert.code);
             }
             catch(e){
                 console.log(e);
@@ -251,12 +250,6 @@ const executableAssertMethods = {
 
         return results;
 }
-}
-
-function safeEval(code, params)
-{
-    const func = new Function(...Object.keys(params), ` return (${code});`)
-    return func(...Object.values(params));
 }
 
 function getAssertResults(asserts, response){
