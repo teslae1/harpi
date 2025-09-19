@@ -189,10 +189,10 @@ function addParamVariables(variables, cliVariables){
 }
 
 const executableAssertMethods = {
-    statusCodeEquals: function(exp, response, assertName) {
+    statusCodeEquals: function (exp, response, assertName) {
         exp = String(exp);
         var act = String(response.statusCode);
-        if(act != exp){
+        if (act != exp) {
             return {
                 wasSuccess: false,
                 assertName: assertName,
@@ -204,8 +204,35 @@ const executableAssertMethods = {
             wasSuccess: true,
             assertName: assertName,
             message: "status code was " + exp
-    };
-},
+        };
+    },
+
+    responseContains: function (exp, response, assertName) {
+        const expStr = String(exp);
+        if(response == null || response.body == null){
+            return {
+                wasSuccess: false,
+                assertName: assertName,
+                message: "Could not find expected string '"+exp+"' in response since response was null"
+            }
+        }
+        const responseStr = String(response.body);
+        const success = responseStr.includes(expStr);
+        if(!success){
+            return {
+                wasSuccess: false,
+                assertName: assertName,
+                message: "did not find expected string '"+expStr+"' in response body. response body was: " + responseStr
+            }
+        }
+
+        return {
+            wasSuccess: true,
+            assertName: assertName,
+            message: "did find expected string '" + expStr + "' in response body"
+        };
+    },
+
     javascriptAsserts: function(exp, response, assertName){
 
         try{

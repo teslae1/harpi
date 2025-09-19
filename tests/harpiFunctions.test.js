@@ -25,6 +25,46 @@ describe('harpiFunctions.js', () =>{
 		jest.resetAllMocks();
 	});
 
+	it("Should support assert: responseContains", async () => {
+		//define yml 
+
+		const yml =
+			"requests:\n" +
+			"  - url: https://t.com\n" +
+			"    method: get\n" + 
+			"    asserts:\n" +
+			"      responseContains: 'IN RESPONSE'\n";
+			var responseBody = "this is IN RESPONSE";
+
+		 const actResult = await getSingleRunResultAsync(yml,responseBody);
+		 expect(actResult).toEqual(0);
+
+		const ymlWhereAssertFails =
+			"requests:\n" +
+			"  - url: https://t.com\n" +
+			"    method: get\n" + 
+			"    asserts:\n" +
+			"      responseContains: 'NOT IN RESPONSE'\n";
+
+		 const failedActResult = await getSingleRunResultAsync(ymlWhereAssertFails,responseBody);
+		 expect(failedActResult).toEqual(1);
+	});
+
+	async function getSingleRunResultAsync(ymlStr, firstResponseBody)
+	{
+		const filename = "file";
+		fileHandler.readFileSync = jest.fn(file => ymlStr);
+		fileHandler.findHarpiYmlFile = jest.fn(file => filename);
+		fileHandler.addFileExtensionIfNone = jest.fn(file => file);
+		axios.mockImplementation(() => {
+			return Promise.resolve({
+				data: firstResponseBody,
+				status: 200
+			})
+		});
+		return await run(filename,bail=true);
+	}
+
 	it("Should send expected requests", async () => {
 		tests = [
 			{
@@ -289,6 +329,7 @@ describe('harpiFunctions.js', () =>{
 	});
 
 });
+
 
 function testLogFunction(msg){
 }
