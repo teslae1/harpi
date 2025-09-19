@@ -3,6 +3,7 @@ const fileHandler = require('./FileHandler');
 const jsYml = require('js-yaml');
 const https = require("https");
 const axios = require('axios');
+const localeval = require('localeval');
 const { v4: uuidv4 } = require('uuid');
 const qs = require('qs');
 
@@ -221,7 +222,7 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                success = eval(jsAssert.code);
+                success = localeval(jsAssert.code, {response: response});
             }
             catch(e){
                 results.push({

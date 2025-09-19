@@ -25,6 +25,7 @@
     "commander": "^11.0.0",
     "harpi_cli": "^1.0.1",
     "js-yaml": "^4.1.0",
+    "localeval": "^15.3.0",
     "node-fetch": "^3.3.1",
     "sync-request": "^6.1.0",
     "uuid": "^9.0.0"
