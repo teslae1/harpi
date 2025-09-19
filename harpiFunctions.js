@@ -95,6 +95,14 @@ async function run(harpiYmlFileName,
                 msg += wait.minutes + " minutes ";
                 totalWait += wait.minutes * 60 * 1000;
             }
+            if(wait.hours != undefined){
+                msg += wait.hours + " hours ";
+                totalWait += wait.hours * 60 * 60 * 1000;
+            }
+            if(wait.days != undefined){
+                msg += wait.days + " days ";
+                totalWait += wait.days * 24 * 60 * 60 * 1000;
+            }
 
             log(msg);
 
