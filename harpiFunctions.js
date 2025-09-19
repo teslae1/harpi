@@ -255,7 +255,7 @@ const executableAssertMethods = {
 
 function safeEval(code, params)
 {
-    const func = new Function(...Object.keys(params), `return (${code});`)
+    const func = new Function(...Object.keys(params), `"use strict"; return (${code});`)
     return func(...Object.values(params));
 }
 
