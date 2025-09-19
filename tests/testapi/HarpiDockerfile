@@ -1,5 +1,6 @@
 FROM node:18
 WORKDIR /usr/src/harpi
+ENV MYSECRETNAME=MYSECRETVALUE
 COPY package*.json ./
 RUN npm install
 COPY . . 

@@ -1,6 +1,6 @@
 {
   "name": "harpi_cli",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "\"# harpi\"",
   "main": "index.js",
   "bin": {
@@ -23,10 +23,10 @@
   "dependencies": {
     "axios": "^1.4.0",
     "commander": "^11.0.0",
-    "harpi_cli": "^1.0.1",
     "js-yaml": "^4.1.0",
+    "localeval": "^15.3.0",
     "node-fetch": "^3.3.1",
-    "sync-request": "^6.1.0",
+    "qs": "^6.14.0",
     "uuid": "^9.0.0"
   },
   "devDependencies": {

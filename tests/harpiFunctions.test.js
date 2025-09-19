@@ -13,8 +13,6 @@ let harpiYml =
     "    method: get";
 
 
-
-
 //mock the axios function to when called with options where method is get and data is "myjson" return a result async
 jest.mock('axios');
 

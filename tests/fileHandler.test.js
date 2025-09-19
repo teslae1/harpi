@@ -1,7 +1,7 @@
 const fs = require('fs');
 const jsYml = require('js-yaml');
 const joinPathSegments = require('path').join;
-const fileHandler = require('../fileHandler');
+const fileHandler = require('../FileHandler');
 
 
 jest.mock('fs');
