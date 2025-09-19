@@ -176,6 +176,25 @@ requests:
       anotherDateProperty: "$(dateFiveMinutesInFuture)"
 ```
 
+## all supported types of asserts
+Harpi supports a set of asserts and also supports you definning custom asserts in javascript.
+```yml
+variables:
+  baseAddress: "https://test.com"
+
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      statusCodeEquals: 200
+      responseContains: "testTitle"
+      javascriptAsserts:
+        - name: "assert first element has expected title"
+          code: "response[0].title == 'testTitle'"
+
+```
+
 ## Using harpi as api content response comparison
 Harpi is intended to work with simple datatypes for dynamically assigned values and comparisons
 but does in some ways support comparing entire api responses by converting the responses 
