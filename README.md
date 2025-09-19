@@ -189,7 +189,7 @@ requests:
     asserts:
       statusCodeEquals: 200
       responseContains: "testTitle"
-      javascriptAssert:
+      javascriptAsserts:
         - name: "assert first element has expected title"
           code: "response[0].title == 'testTitle'"
 
