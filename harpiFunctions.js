@@ -214,7 +214,7 @@ const executableAssertMethods = {
         response = JSON.parse(response.body);
         }
         catch(e){
-            response = response.body
+            response = response.body;
         }
 
         if(response == undefined){
@@ -230,9 +230,10 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                success = localeval(jsAssert.code, {response: response});
+                success = safeEval(jsAssert.code, {response: response});
             }
             catch(e){
+                console.log(e);
                 results.push({
                     wasSuccess: false,
                     assertName: jsAssert.name,
@@ -250,6 +251,12 @@ const executableAssertMethods = {
 
         return results;
 }
+}
+
+function safeEval(code, params)
+{
+    const func = new Function(...Object.keys(params), `"use strict"; return (${code});`)
+    return func(...Object.values(params));
 }
 
 function getAssertResults(asserts, response){
