@@ -233,6 +233,10 @@ const executableAssertMethods = {
         };
     },
 
+    responseIncludes: function(exp, response, assertName) {
+        return this.responseContains(exp, response, assertName);
+    },
+
     javascriptAsserts: function(exp, response, assertName){
 
         try{
