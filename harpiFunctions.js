@@ -230,8 +230,7 @@ const executableAssertMethods = {
             const jsAssert = exp[i];
             let success = false;
             try{
-                //success = safeEval(jsAssert.code, {response: response});
-                success = eval(jsAssert.code);
+                success = safeEval(jsAssert.code, {response: response});
             }
             catch(e){
                 console.log(e);
