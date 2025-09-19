@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
 jobs:
   unit-tests:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js
@@ -23,7 +23,7 @@ jobs:
       - name: run unit tests
         run: npm test
   cmd-tool-test-against-nodeapi:
-    runs-on: 	ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
       - name: Use Node.js
