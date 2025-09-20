@@ -802,13 +802,12 @@ function tinyEval(code, response){
 }
 
 function getAst(code){
-    let response = parse(code,0);
+    let response = parse(code,0,{});
     return response.parsed;
 }
 
-function parse(code, iterator){
+function parse(code, iterator, parsed, precedence){
     let c = '';
-    let parsed = {};
     let parseResponse = {};
     for(var i = iterator; i < code.length;i++){
         c = code[i];
@@ -816,9 +815,16 @@ function parse(code, iterator){
             continue;
         }
 
-        let method = getParserMethod(code, i);
+        //if current precedence > last precedence
+        let parserMethodResponse = getParserMethod(code, i);
+        let method = parserMethodResponse.method;
+        let thisParsingMethodSymbolId = parserMethodResponse.symbolId;
+        let currentPrecedence = getCurrentPrecedenceByParserMethodId(parserMethodResponse.symbolId);
+        if(precedence != null && currentPrecedence > precedence){
+            return createParseResponse(parsed,iterator);
+        }
 
-        parseResponse = method(code,i,parsed);
+        parseResponse = method(code,i,parsed, precedence);
         parsed = parseResponse.parsed;
         i = parseResponse.iterator;
 
@@ -828,12 +834,31 @@ function parse(code, iterator){
     return createParseResponse(parsed, iterator);
 }
 
+const defaultPrecedence = -1;
+const symbolIdPrecedenceMap = {
+    "==": 0
+}
+function getCurrentPrecedenceByParserMethodId(symbolId){
+    if(symbolId == null){
+        return defaultPrecedence;
+    }
+
+    const precedence = symbolIdPrecedenceMap[symbolId];
+    if(precedence == null){
+        return defaultPrecedence;
+    }
+
+    return precedence;
+}
+
+
 function getParserMethod(code, iterator) {
     let method = null;
     const c = code[iterator];
+    let methodKey = "";
     for (var j = 1; j < maxLenParserIdentifiers; j++) {
-        let methodKey = c;
         var tempI = iterator;
+        methodKey = c;
         while (methodKey.length < j && tempI + 1 < code.length) {
             tempI++;
             methodKey += code[tempI];
@@ -843,10 +868,18 @@ function getParserMethod(code, iterator) {
             break;
         }
     }
-    if (method == null) {
-        throwParserError("no parser method found for token: " + c + " at index " + i + " for code: " + code);
+    const noSymbolParserFound = method == null;
+    if(noSymbolParserFound){
+        return createParserMethodResponse(parseIdent, "");
     }
-    return method;
+    return createParserMethodResponse(method,methodKey);
+}
+
+function createParserMethodResponse(method,symbolIdentifier){
+    return {
+        method: method,
+        symbolId: symbolIdentifier
+    }
 }
 
 const maxLenParserIdentifiers = 3;
@@ -867,7 +900,21 @@ const stringParserMethodsMap  = {
     ">=": parseComparison,
     "<": parseComparison,
     "<=": parseComparison,
-    "'": parseString
+    "'": parseString,
+    ".": parseAccessor
+}
+
+function parseIdent(code, iterator){
+    let identStr = "";
+    for(;iterator < code.length;iterator++){
+        if(code[iterator] == ' '){
+            break;
+        }
+        identStr += code[iterator];
+    }
+
+    const parsed = {type: nodeTypes.identifier, value: identStr};
+    return createParseResponse(parsed, iterator);
 }
 
 const numberChars = "0123456789";
@@ -890,7 +937,9 @@ function parseNumber(code, iterator){
 }
 
 const nodeTypes = {
-    comparer: "comparer"
+    comparer: "comparer",
+    accessor: "accessor",
+    identifier: "identifier"
 };
 const comparers = {
     equals: "==",
@@ -941,6 +990,19 @@ function parseString(code, iterator){
     return createParseResponse(parsed,iterator);
 }
 
+function parseAccessor(code,iterator,left){
+    var accessorSymbol = code[iterator];
+    if(accessorSymbol != '.'){
+        throwParseError("Expected accesor symbol '.'");
+    }
+    iterator++;
+    const rightResponse = parse(code,iterator,left,-1);
+    const right = rightResponse.parsed;
+    const parsed = {type: nodeTypes.accessor, left: left, right: right};
+
+    return createParseResponse(parsed, rightResponse.iterator);
+}
+
 
 function evalAst(node, response){
     return evalNode(node, response);
@@ -949,6 +1011,9 @@ function evalAst(node, response){
 function evalNode(node, response){
     if(node.type == nodeTypes.comparer){
         return evalComparer(node, response);
+    }
+    else if(node.type == nodeTypes.accessor){
+        return evalAccessor(node, response);
     }
     else if(typeof node == 'number'){
         return node;
@@ -988,6 +1053,22 @@ function evalComparer(node, response){
     }
     else{
         throwEvalError("unsupported comparer: " + comparer);
+    }
+}
+
+function evalAccessor(node, response){
+    const left = evalNode(node.left);
+    const right = node.right;
+    if(typeof left == "string"){
+        if(right.type == nodeTypes.identifier){
+            return left[right.value];
+        }
+        else{
+            throwEvalError("unsupported right hand side type of accessor: " + right.type);
+        }
+    }
+    else{
+        throwEvalError("unsupported left hand type of accessor: " + typeof left);
     }
 }
 
