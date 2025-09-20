@@ -173,7 +173,7 @@ describe('harpiFunctions.js', () =>{
 			if(result != test.expectedExitCode){
     			const redText = '\x1b[31m';
     			const resetColor = '\x1b[0m';
-				throw new Error(redText + "exp '"+test.expectedExitCode+"' but got '"+result+". code was: |" +test.code+ "|, response was: " + test.responseBody + resetColor);
+				throw new Error(redText + "exp '"+test.expectedExitCode+"' but got '"+result+"'. code was: |" +test.code+ "|, response was: " + test.responseBody + resetColor);
 			}
 		});
 	});
