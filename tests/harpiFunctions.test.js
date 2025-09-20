@@ -137,6 +137,11 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1
 			},
 			{
+				code: "'str'.includes('str')",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
 				code: "response.value[0].Description.includes('DESCRIPTION')",
 				responseBody: JSON.stringify({
 					value: [
@@ -146,6 +151,11 @@ describe('harpiFunctions.js', () =>{
 					]
 				}),
 				expectedExitCode: 0 
+			},
+			{
+				code: "!'str'.includes('str')",
+				responseBody: "",
+				expectedExitCode: 1
 			},
 			{
 				code: "response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
