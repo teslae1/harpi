@@ -78,17 +78,17 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1 
 			},
 			{
-				code: "'str'.length() == 3",
+				code: "'str'.length == 3",
 				responseBody: "",
 				expectedExitCode: 0
 			},
 			{
-				code: "'str'.length() > 2",
+				code: "'str'.length > 2",
 				responseBody: "",
 				expectedExitCode: 0
 			},
 			{
-				code: "'str'.length() <= 2",
+				code: "'str'.length <= 2",
 				responseBody: "",
 				expectedExitCode: 1
 			},
@@ -141,7 +141,7 @@ describe('harpiFunctions.js', () =>{
 				responseBody: JSON.stringify({
 					value: [
 						{
-							Description: "DESCRIPTIOn"
+							Description: "DESCRIPTION"
 						}
 					]
 				}),
@@ -173,7 +173,7 @@ describe('harpiFunctions.js', () =>{
 			if(result != test.expectedExitCode){
     			const redText = '\x1b[31m';
     			const resetColor = '\x1b[0m';
-				throw new Error(redText + "Expected code: |" +test.code+ "| to result in '"+test.expectedExitCode+"' when response body is: " + test.responseBody + resetColor);
+				throw new Error(redText + "exp '"+test.expectedExitCode+"' but got '"+result+". code was: |" +test.code+ "|, response was: " + test.responseBody + resetColor);
 			}
 		});
 	});

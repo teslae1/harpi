@@ -280,7 +280,51 @@ const executableAssertMethods = {
     }
 
         return results;
-}
+    },
+
+    codeAsserts: function (asserts, response, assertName) {
+        try {
+
+            response = JSON.parse(response.body);
+        }
+        catch (e) {
+            response = response.body;
+        }
+
+        if (response == undefined) {
+            return {
+                wasSuccess: false,
+                assertName: assertName,
+                message: "response body is undefined"
+            }
+        }
+
+        let results = [];
+        for(var i = 0; i < asserts.length;i++){
+            const assert = asserts[i];
+            let success = false;
+            try{
+                success = tinyEval(assert.code, response);
+            }
+            catch(e){
+                console.log(e);
+                results.push({
+                    wasSuccess: false,
+                    assertName: jsAssert.name,
+                    message: "javascript assert failed while trying to run injected code: " + e.message
+            });
+                continue;
+            }
+
+            results.push({
+                wasSuccess: success,
+                assertName: assert.name,
+                message: success == true ? "passed" : "code assert failed: " + assert.code
+            })
+        }
+
+        return results;
+    }
 }
 
 function getAssertResults(asserts, response){
@@ -747,6 +791,10 @@ function log(msg){
 
 function saveLogToFile(filePath){
      fileHandler.writeLogFileSync(filePath, logStr);
+}
+
+function tinyEval(code, response){
+    return false;
 }
 
 
