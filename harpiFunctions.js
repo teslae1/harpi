@@ -310,7 +310,7 @@ const executableAssertMethods = {
                 console.log(e);
                 results.push({
                     wasSuccess: false,
-                    assertName: jsAssert.name,
+                    assertName: assert.name,
                     message: "javascript assert failed while trying to run injected code: " + e.message
             });
                 continue;
@@ -794,7 +794,172 @@ function saveLogToFile(filePath){
 }
 
 function tinyEval(code, response){
-    return false;
+    if(code == null){
+        throwParamError("code cannot be null");
+    }
+    var ast = getAst(code);
+    return evalAst(ast, response);
+}
+
+function getAst(code){
+    let response = parse(code,0);
+    return response.parsed;
+}
+
+function parse(code, iterator){
+    let c = '';
+    let parsed = {};
+    let parseResponse = {};
+    for(var i = iterator; i < code.length;i++){
+        c = code[i];
+        if(c == ' '){
+            continue;
+        }
+
+        let method = getParserMethod(code, i);
+
+        parseResponse = method(code,i,parsed);
+        parsed = parseResponse.parsed;
+        i = parseResponse.iterator;
+
+        iterator = i;
+    }
+
+    return createParseResponse(parsed, iterator);
+}
+
+function getParserMethod(code, iterator) {
+    let method = null;
+    const c = code[iterator];
+    for (var j = 1; j < maxLenParserIdentifiers; j++) {
+        let methodKey = c;
+        var tempI = iterator;
+        while (methodKey.length < j && tempI + 1 < code.length) {
+            tempI++;
+            methodKey += code[tempI];
+        }
+        method = stringParserMethodsMap[methodKey];
+        if (method != null) {
+            break;
+        }
+    }
+    if (method == null) {
+        throwParserError("no parser method found for token: " + c + " at index " + i + " for code: " + code);
+    }
+    return method;
+}
+
+const maxLenParserIdentifiers = 3;
+const stringParserMethodsMap  = {
+    "0": parseNumber,
+    "1": parseNumber,
+    "2": parseNumber,
+    "3": parseNumber,
+    "4": parseNumber,
+    "5": parseNumber,
+    "6": parseNumber,
+    "7": parseNumber,
+    "8": parseNumber,
+    "9": parseNumber,
+    "==": parseComparison,
+}
+
+const numberChars = "0123456789";
+function parseNumber(code, iterator){
+    let numbStr = "";
+    let newIteratorPos = 0;
+    for(var i= iterator;i < code.length;i++){
+        if(numberChars.includes(code[i]) == false){
+            break;
+        }
+        numbStr += code[i];
+        newIteratorPos = i;
+    }
+    if(numbStr.length < 1){
+        throw new ParseError("expected atleast 1 char in numbStr");
+    }
+
+    const parsed = Number(numbStr);
+    return createParseResponse(parsed,newIteratorPos);
+}
+
+const nodeTypes = {
+    comparer: "comparer"
+};
+const comparers = {
+    equals: "=="
+}
+
+function parseComparison(code, iterator, left){
+    let comparerStr = "";
+    for(var i = iterator; i < code.length;i++){
+        if(code[i] == ' '){
+            break;
+        }
+        comparerStr += code[i];
+        iterator++;
+    }
+    if(!Object.values(comparers).includes(comparerStr)){
+        throwParserError("unsupported comparer: " + comparerStr);
+    }
+    const rightResponse = parse(code, iterator);
+    const parsed = {type: nodeTypes.comparer, comparer: comparerStr, left: left, right: rightResponse.parsed };
+    return createParseResponse(parsed, rightResponse.iterator);
+}
+
+
+function evalAst(node, response){
+    return evalNode(node, response);
+}
+
+function evalNode(node, response){
+    if(node.type == nodeTypes.comparer){
+        return evalComparer(node, response);
+    }
+    else if(typeof node == 'number'){
+        return node;
+    }
+    else{
+        throwEvalError("unsupported node type for eval: " + ast.type);
+    }
+}
+
+function evalComparer(node, response){
+    var comparer = node.comparer;
+    if(comparer == null){
+        throwEvalError("expected comparer to have value for node: " + node);
+    }
+    if(comparer == comparers.equals){
+        const left = evalNode(node.left, response);
+        const right = evalNode(node.right,response);
+        return left == right;
+    }
+    else{
+        throwEvalError("unsupported comparer: " + comparer);
+    }
+}
+
+function throwEvalError(msg){
+    throwErrorWithPrefix("eval error: ", msg);
+}
+
+function throwParserError(msg){
+    throwErrorWithPrefix("parser error: ", msg);
+}
+
+function throwParamError(msg){
+    throwErrorWithPrefix("param error: ", msg);
+}
+
+function throwErrorWithPrefix(prefix, msg){
+    throw new Error(prefix+msg);
+}
+
+function createParseResponse(parsed, iterator){
+    return {
+        iterator: iterator,
+        parsed: parsed
+    };
 }
 
 
