@@ -862,6 +862,7 @@ const stringParserMethodsMap  = {
     "8": parseNumber,
     "9": parseNumber,
     "==": parseComparison,
+    "!=": parseComparison,
 }
 
 const numberChars = "0123456789";
@@ -887,7 +888,8 @@ const nodeTypes = {
     comparer: "comparer"
 };
 const comparers = {
-    equals: "=="
+    equals: "==",
+    notEquals: "!="
 }
 
 function parseComparison(code, iterator, left){
@@ -929,10 +931,13 @@ function evalComparer(node, response){
     if(comparer == null){
         throwEvalError("expected comparer to have value for node: " + node);
     }
+    const left = evalNode(node.left, response);
+    const right = evalNode(node.right, response);
     if(comparer == comparers.equals){
-        const left = evalNode(node.left, response);
-        const right = evalNode(node.right,response);
         return left == right;
+    }
+    else if(comparer == comparers.notEquals){
+        return left != right;
     }
     else{
         throwEvalError("unsupported comparer: " + comparer);
