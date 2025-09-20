@@ -867,6 +867,7 @@ const stringParserMethodsMap  = {
     ">=": parseComparison,
     "<": parseComparison,
     "<=": parseComparison,
+    "'": parseString
 }
 
 const numberChars = "0123456789";
@@ -917,6 +918,29 @@ function parseComparison(code, iterator, left){
     return createParseResponse(parsed, rightResponse.iterator);
 }
 
+function parseString(code, iterator){
+    var startStrSymbol = code[iterator];
+    if(startStrSymbol != "'" && startStrSymbol != '"'){
+        throwParseError("Invalid string start symbol: "+startStrSymbol);
+    }
+    iterator++;
+    let didDetectEndOfStr = false;
+    let parsed = "";
+    while(iterator < code.length){
+        didDetectEndOfStr = code[iterator] == startStrSymbol;
+        if(didDetectEndOfStr){
+            break;
+        }
+        parsed += code[iterator];
+        iterator++;
+    }
+    if(!didDetectEndOfStr){
+        throwParseError("did not find expected string end symbol, expected to find: " + startStrSymbol);
+    }
+
+    return createParseResponse(parsed,iterator);
+}
+
 
 function evalAst(node, response){
     return evalNode(node, response);
@@ -927,6 +951,9 @@ function evalNode(node, response){
         return evalComparer(node, response);
     }
     else if(typeof node == 'number'){
+        return node;
+    }
+    else if(typeof node == "string"){
         return node;
     }
     else{
