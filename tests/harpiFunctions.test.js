@@ -25,6 +25,159 @@ describe('harpiFunctions.js', () =>{
 		jest.resetAllMocks();
 	});
 
+	it("Should interpret code expressions correctly ", async () => {
+		var tests = [
+			{
+				code: "0 == 0",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "1 != 1",
+				responseBody: "",
+				expectedExitCode: 1 
+			},
+			{
+				code: "1 != 0",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "2 > 1",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "2 < 1",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "2 <= 2",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "2 > 2",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "2 >= 2",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str' == 'str'",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str' != 'str'",
+				responseBody: "",
+				expectedExitCode: 1 
+			},
+			{
+				code: "'str'.length() == 3",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str'.length() > 2",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str'.length() <= 2",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "response.isActive == false",
+				responseBody: JSON.stringify({
+					isActive: false
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.isActive != false",
+				responseBody: JSON.stringify({
+					isActive: false
+				}),
+				expectedExitCode: 1 
+			},
+			{
+				code: "response.isActive == true",
+				responseBody: JSON.stringify({
+					isActive: true
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.isActive != true",
+				responseBody: JSON.stringify({
+					isActive: true
+				}),
+				expectedExitCode: 1
+			},
+			{
+				code: "response.value.length > 0",
+				responseBody: JSON.stringify({
+					value: [
+						{}
+					]
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.value.length > 0",
+				responseBody: JSON.stringify({
+					value: []
+				}),
+				expectedExitCode: 1
+			},
+			{
+				code: "response.value[0].Description.includes('DESCRIPTION')",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTIOn"
+						}
+					]
+				}),
+				expectedExitCode: 0 
+			},
+			{
+				code: "response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTION"
+						}
+					]
+				}),
+				expectedExitCode: 1
+			}
+		];
+
+		tests.forEach(async test => {
+			const yml = 
+			"requests:\n" +
+			"  - url: https://t.com\n" +
+			"    method: get\n" + 
+			"    asserts:\n" +
+			"      codeAsserts:\n" + 
+			"        - code: \""+test.code+"\"\n";
+
+			const result = await getSingleRunResultAsync(yml, test.responseBody);
+			if(result != test.expectedExitCode){
+    			const redText = '\x1b[31m';
+    			const resetColor = '\x1b[0m';
+				throw new Error(redText + "Expected code: |" +test.code+ "| to result in '"+test.expectedExitCode+"' when response body is: " + test.responseBody + resetColor);
+			}
+		});
+	});
+
 	it("Should support assert: responseContains", async () => {
 		//define yml 
 
