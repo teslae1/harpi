@@ -835,20 +835,17 @@ function parse(code, iterator, parsed, precedence){
 }
 
 const defaultPrecedence = -1;
-const symbolIdPrecedenceMap = {
-    "==": 0
-}
 function getCurrentPrecedenceByParserMethodId(symbolId){
     if(symbolId == null){
         return defaultPrecedence;
     }
 
-    const precedence = symbolIdPrecedenceMap[symbolId];
-    if(precedence == null){
-        return defaultPrecedence;
+    const isComparer = Object.values(comparers).includes(symbolId);
+    if(isComparer){
+        return 0;
     }
 
-    return precedence;
+    return defaultPrecedence;
 }
 
 
