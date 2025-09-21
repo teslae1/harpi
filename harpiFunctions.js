@@ -901,13 +901,24 @@ const stringParserMethodsMap  = {
     ".": parseAccessor
 }
 
+const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
 function parseIdent(code, iterator){
     let identStr = "";
+    let c = "";
     for(;iterator < code.length;iterator++){
-        if(code[iterator] == ' '){
+        c = code[iterator];
+        if(!validIdentifierChars.includes(c)){
             break;
         }
-        identStr += code[iterator];
+        identStr += c;
+    }
+    if(c != " "){
+        iterator--;
+    }
+
+    if(identStr == "false" || identStr == "true"){
+        const val = identStr == "true";
+        return createParseResponse(val, iterator);
     }
 
     const parsed = {type: nodeTypes.identifier, value: identStr};
@@ -936,7 +947,7 @@ function parseNumber(code, iterator){
 const nodeTypes = {
     comparer: "comparer",
     accessor: "accessor",
-    identifier: "identifier"
+    identifier: "identifier",
 };
 const comparers = {
     equals: "==",
@@ -1012,10 +1023,16 @@ function evalNode(node, response){
     else if(node.type == nodeTypes.accessor){
         return evalAccessor(node, response);
     }
+    else if(node.type == nodeTypes.identifier){
+        return evalIdentifier(node, response);
+    }
     else if(typeof node == 'number'){
         return node;
     }
     else if(typeof node == "string"){
+        return node;
+    }
+    else if(typeof node == "boolean"){
         return node;
     }
     else{
@@ -1054,9 +1071,9 @@ function evalComparer(node, response){
 }
 
 function evalAccessor(node, response){
-    const left = evalNode(node.left);
+    const left = evalNode(node.left, response);
     const right = node.right;
-    if(typeof left == "string"){
+    if(typeof left == "string" || typeof left == "object"){
         if(right.type == nodeTypes.identifier){
             return left[right.value];
         }
@@ -1067,6 +1084,14 @@ function evalAccessor(node, response){
     else{
         throwEvalError("unsupported left hand type of accessor: " + typeof left);
     }
+}
+
+function evalIdentifier(node, response){
+    if(node.value != "response"){
+        throwEvalError("invalid identifier: only valid 'response' but got: " + node.value);
+    }
+
+    return response;
 }
 
 function throwEvalError(msg){

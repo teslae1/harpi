@@ -168,7 +168,7 @@ describe('harpiFunctions.js', () =>{
 				}),
 				expectedExitCode: 1
 			}
-		];
+		]
 
 		tests.forEach(async test => {
 			const yml = 
