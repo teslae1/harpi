@@ -806,7 +806,7 @@ function getAst(code){
     return response.parsed;
 }
 
-function parse(code, iterator, parsed, precedence){
+function parse(code, iterator, parsed, precedence, stopSymbols){
     let c = '';
     let parseResponse = {};
     for(var i = iterator; i < code.length;i++){
@@ -814,8 +814,10 @@ function parse(code, iterator, parsed, precedence){
         if(c == ' '){
             continue;
         }
+        if(stopSymbols != null && stopSymbols.includes(c)){
+            return parseResponse;
+        }
 
-        //if current precedence > last precedence
         let parserMethodResponse = getParserMethod(code, i);
         let method = parserMethodResponse.method;
         let thisParsingMethodSymbolId = parserMethodResponse.symbolId;
@@ -898,7 +900,9 @@ const stringParserMethodsMap  = {
     "<": parseComparison,
     "<=": parseComparison,
     "'": parseString,
-    ".": parseAccessor
+    "\"": parseString,
+    ".": parseAccessor,
+    "(": parseFunction
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -925,6 +929,34 @@ function parseIdent(code, iterator){
     return createParseResponse(parsed, iterator);
 }
 
+function parseFunction(code, iterator,left){
+    var args = [];
+    iterator++;
+    //count forward from current position, parse each seperated by comma
+    let c = "";
+    let didBreakOnEnclosedParams = false;
+    let stopSymbols = [')',','];
+    let argParseResponse = {};
+    for(;iterator<code.length;iterator++){
+        c = code[iterator];
+        if(c == ')'){
+            didBreakOnEnclosedParams = true;
+            break;
+        }
+        argParseResponse = parse(code, iterator, null, null, stopSymbols);
+        args.push(argParseResponse.parsed);
+        iterator = argParseResponse.iterator;
+    }
+
+    if(!didBreakOnEnclosedParams){
+        throwParseError("Expected parse of args to end with enclosing function symbol");
+    }
+    iterator++;
+
+    const parsed = {type: nodeTypes.function, ident: left, args: args};
+    return createParseResponse(parsed, iterator);
+}
+
 const numberChars = "0123456789";
 function parseNumber(code, iterator){
     let numbStr = "";
@@ -948,6 +980,7 @@ const nodeTypes = {
     comparer: "comparer",
     accessor: "accessor",
     identifier: "identifier",
+    function: "function"
 };
 const comparers = {
     equals: "==",
@@ -1013,18 +1046,23 @@ function parseAccessor(code,iterator,left){
 
 
 function evalAst(node, response){
-    return evalNode(node, response);
+    var env = {
+        variables: {
+            response: response
+        }
+    }
+    return evalNode(node, env);
 }
 
-function evalNode(node, response){
+function evalNode(node, env){
     if(node.type == nodeTypes.comparer){
-        return evalComparer(node, response);
+        return evalComparer(node, env);
     }
     else if(node.type == nodeTypes.accessor){
-        return evalAccessor(node, response);
+        return evalAccessor(node, env);
     }
     else if(node.type == nodeTypes.identifier){
-        return evalIdentifier(node, response);
+        return evalIdentifier(node, env);
     }
     else if(typeof node == 'number'){
         return node;
@@ -1040,13 +1078,13 @@ function evalNode(node, response){
     }
 }
 
-function evalComparer(node, response){
+function evalComparer(node, env){
     var comparer = node.comparer;
     if(comparer == null){
         throwEvalError("expected comparer to have value for node: " + node);
     }
-    const left = evalNode(node.left, response);
-    const right = evalNode(node.right, response);
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
     if(comparer == comparers.equals){
         return left == right;
     }
@@ -1070,12 +1108,16 @@ function evalComparer(node, response){
     }
 }
 
-function evalAccessor(node, response){
-    const left = evalNode(node.left, response);
+function evalAccessor(node, env){
+    env = updateAccessorScope(node, env);
     const right = node.right;
+    const left = env.currentAccessorScope;
     if(typeof left == "string" || typeof left == "object"){
         if(right.type == nodeTypes.identifier){
             return left[right.value];
+        }
+        else if(right.type == nodeTypes.accessor){
+            return evalNode(right, env);
         }
         else{
             throwEvalError("unsupported right hand side type of accessor: " + right.type);
@@ -1086,12 +1128,32 @@ function evalAccessor(node, response){
     }
 }
 
-function evalIdentifier(node, response){
-    if(node.value != "response"){
-        throwEvalError("invalid identifier: only valid 'response' but got: " + node.value);
+function updateAccessorScope(node, env) {
+    if(env.currentAccessorScope == null && typeof node.left != "object"){
+        env.currentAccessorScope = node.left;
+        return env;
+    }
+    if (node.left.type != nodeTypes.identifier) {
+        throwEvalError("Expected left hand side of accessor to be ident, got: " + node.left.type);
+    }
+    if (env.currentAccessorScope == null) {
+        env.currentAccessorScope = evalNode(node.left, env);
+        return env;
     }
 
-    return response;
+    const identVal = node.left.value;
+    env.currentAccessorScope = env.currentAccessorScope[identVal];
+    return env;
+}
+
+function evalIdentifier(node, env){
+    const identVal = node.value;
+    const variableVal = env.variables[identVal];
+    if(variableVal == null){
+        throwEvalError("tried to access non-existing variable with key: " + identVal);
+    }
+
+    return variableVal;
 }
 
 function throwEvalError(msg){
