@@ -68,6 +68,16 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 0
 			},
 			{
+				code: "2.2 > 2.1",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "2.2 < 2.1",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
 				code: "'str' == 'str'",
 				responseBody: "",
 				expectedExitCode: 0
@@ -142,6 +152,13 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 0
 			},
 			{
+				code: "response.value[0] == 1",
+				responseBody: JSON.stringify({
+					value: [1]
+				}),
+				expectedExitCode: 0 
+			},
+			{
 				code: "response.value[0].Description.includes('DESCRIPTION')",
 				responseBody: JSON.stringify({
 					value: [
@@ -153,12 +170,45 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 0 
 			},
 			{
+				code: "response.value[0].Description.includes('DESCRIPTION') == false",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTION"
+						}
+					]
+				}),
+				expectedExitCode: 1
+			},
+			{
 				code: "!'str'.includes('str')",
 				responseBody: "",
 				expectedExitCode: 1
 			},
 			{
 				code: "response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTION"
+						}
+					]
+				}),
+				expectedExitCode: 1
+			},
+			{
+				code: "!response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTION"
+						}
+					]
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "!!response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
 				responseBody: JSON.stringify({
 					value: [
 						{

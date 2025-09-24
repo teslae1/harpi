@@ -855,7 +855,7 @@ function getParserMethod(code, iterator) {
     let method = null;
     const c = code[iterator];
     let methodKey = "";
-    for (var j = 1; j < maxLenParserIdentifiers; j++) {
+    for (var j = maxLenParserIdentifiers; j >= 0; j--) {
         var tempI = iterator;
         methodKey = c;
         while (methodKey.length < j && tempI + 1 < code.length) {
@@ -902,7 +902,9 @@ const stringParserMethodsMap  = {
     "'": parseString,
     "\"": parseString,
     ".": parseAccessor,
-    "(": parseFunction
+    "(": parseFunction,
+    "[": parseArrayAccessor,
+    "!": parseInversion
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -953,8 +955,37 @@ function parseFunction(code, iterator,left){
     }
     iterator++;
 
-    const parsed = {type: nodeTypes.function, ident: left, args: args};
+    const parsed = {type: nodeTypes.function, name: left, args: args};
     return createParseResponse(parsed, iterator);
+}
+
+function parseArrayAccessor(code, iterator, left){
+    assertCurrentCharIs("[",code,iterator);
+    iterator++;
+    const stopSymbols = ["]"]
+    const indexAccessorValue =  parse(code,iterator,null,null,stopSymbols)
+    const parsed = { type: nodeTypes.arrayAccessor, array: left, accessorValue: indexAccessorValue.parsed };
+    iterator = indexAccessorValue.iterator;
+    iterator++;
+    assertCurrentCharIs("]", code, iterator);
+    return createParseResponse(parsed, iterator);
+}
+
+function parseInversion(code, iterator){
+    assertCurrentCharIs("!", code, iterator);
+    iterator++;
+    const toInvert = parse(code,iterator);
+    const parsed = { type: nodeTypes.inversion, toInvert: toInvert.parsed };
+    iterator = toInvert.iterator;
+    return createParseResponse(parsed, iterator);
+}
+
+function assertCurrentCharIs(char,code,iterator){
+    if(code[iterator] == char){
+        return;
+    }
+
+    throwParseError("expected char to be '"+char+"' at index "+iterator+" but was: '"+code[iterator]+"'");
 }
 
 const numberChars = "0123456789";
@@ -980,8 +1011,11 @@ const nodeTypes = {
     comparer: "comparer",
     accessor: "accessor",
     identifier: "identifier",
-    function: "function"
-};
+    function: "function",
+    arrayAccessor: "arrayAccessor",
+    inversion: "inversion"
+}
+
 const comparers = {
     equals: "==",
     notEquals: "!=",
@@ -1001,7 +1035,7 @@ function parseComparison(code, iterator, left){
         iterator++;
     }
     if(!Object.values(comparers).includes(comparerStr)){
-        throwParserError("unsupported comparer: " + comparerStr);
+        throwParseError("unsupported comparer: " + comparerStr);
     }
     const rightResponse = parse(code, iterator);
     const parsed = {type: nodeTypes.comparer, comparer: comparerStr, left: left, right: rightResponse.parsed };
@@ -1064,6 +1098,15 @@ function evalNode(node, env){
     else if(node.type == nodeTypes.identifier){
         return evalIdentifier(node, env);
     }
+    else if(node.type == nodeTypes.function){
+        return evalFunction(node, env);
+    }
+    else if(node.type == nodeTypes.arrayAccessor){
+        return evalArrayAccessor(node, env);
+    }
+    else if(node.type == nodeTypes.inversion){
+        return evalInversion(node, env);
+    }
     else if(typeof node == 'number'){
         return node;
     }
@@ -1074,7 +1117,7 @@ function evalNode(node, env){
         return node;
     }
     else{
-        throwEvalError("unsupported node type for eval: " + ast.type);
+        throwEvalError("unsupported node type for eval: " + node.type);
     }
 }
 
@@ -1109,45 +1152,46 @@ function evalComparer(node, env){
 }
 
 function evalAccessor(node, env){
-    env = updateAccessorScope(node, env);
-    const right = node.right;
-    const left = env.currentAccessorScope;
-    if(typeof left == "string" || typeof left == "object"){
-        if(right.type == nodeTypes.identifier){
-            return left[right.value];
-        }
-        else if(right.type == nodeTypes.accessor){
-            return evalNode(right, env);
-        }
-        else{
-            throwEvalError("unsupported right hand side type of accessor: " + right.type);
-        }
-    }
-    else{
-        throwEvalError("unsupported left hand type of accessor: " + typeof left);
-    }
+    const accessorScopeBeforeThisAccessor = env.currentAccessorScope;
+    env.currentAccessorScope = evalNode(node.left, env);
+    const response = evalNode(node.right, env);
+    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
+    return response;
 }
 
-function updateAccessorScope(node, env) {
-    if(env.currentAccessorScope == null && typeof node.left != "object"){
-        env.currentAccessorScope = node.left;
-        return env;
+function evalFunction(node, env){
+    var args = [];
+    for(var i = 0; i < node.args.length;i++){
+        args.push(evalNode(node.args[i], env));
     }
-    if (node.left.type != nodeTypes.identifier) {
-        throwEvalError("Expected left hand side of accessor to be ident, got: " + node.left.type);
-    }
-    if (env.currentAccessorScope == null) {
-        env.currentAccessorScope = evalNode(node.left, env);
-        return env;
+    const functionName = node.name.value;
+    if(env.currentAccessorScope == null){
+        throwEvalError("expected current accessor scope to be non-null when invoking function with name: " + functionName);
     }
 
-    const identVal = node.left.value;
-    env.currentAccessorScope = env.currentAccessorScope[identVal];
-    return env;
+    return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
+}
+
+function evalArrayAccessor(node, env){
+    const accessorVal = evalNode(node.accessorValue,env);
+    const array = evalNode(node.array,env);
+    return array[accessorVal];
+}
+
+function evalInversion(node, env){
+    return !evalNode(node.toInvert, env);
 }
 
 function evalIdentifier(node, env){
     const identVal = node.value;
+    if(env.currentAccessorScope != null){
+        const val = env.currentAccessorScope[identVal];
+        if(val == undefined){
+            throwEvalError("Could not find variable '"+identVal+"' in current accessor scope");
+        }
+        return val;
+
+    }
     const variableVal = env.variables[identVal];
     if(variableVal == null){
         throwEvalError("tried to access non-existing variable with key: " + identVal);
@@ -1160,7 +1204,7 @@ function throwEvalError(msg){
     throwErrorWithPrefix("eval error: ", msg);
 }
 
-function throwParserError(msg){
+function throwParseError(msg){
     throwErrorWithPrefix("parser error: ", msg);
 }
 
