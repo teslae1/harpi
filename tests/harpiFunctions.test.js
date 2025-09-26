@@ -218,6 +218,11 @@ describe('harpiFunctions.js', () =>{
 				}),
 				expectedExitCode: 1
 			}
+			//{
+			//	code: "(1.1 + 1) > 2.1",
+			//	responseBody: "",
+			//	expectedExitCode: 1
+			//},
 		]
 
 		tests.forEach(async test => {

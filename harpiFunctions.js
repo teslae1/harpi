@@ -988,7 +988,7 @@ function assertCurrentCharIs(char,code,iterator){
     throwParseError("expected char to be '"+char+"' at index "+iterator+" but was: '"+code[iterator]+"'");
 }
 
-const numberChars = "0123456789";
+const numberChars = "0123456789.";
 function parseNumber(code, iterator){
     let numbStr = "";
     let newIteratorPos = 0;
