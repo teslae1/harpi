@@ -217,12 +217,17 @@ describe('harpiFunctions.js', () =>{
 					]
 				}),
 				expectedExitCode: 1
-			}
-			//{
-			//	code: "(1.1 + 1) > 2.1",
-			//	responseBody: "",
-			//	expectedExitCode: 1
-			//},
+			},
+			{
+				code: "(1.1 + 1) > 2.1",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "(1.1 + 1) <= 2.1",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
 		]
 
 		tests.forEach(async test => {
@@ -244,7 +249,6 @@ describe('harpiFunctions.js', () =>{
 	});
 
 	it("Should support assert: responseContains", async () => {
-		//define yml 
 
 		const yml =
 			"requests:\n" +

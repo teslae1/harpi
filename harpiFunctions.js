@@ -802,13 +802,13 @@ function tinyEval(code, response){
 }
 
 function getAst(code){
-    let response = parse(code,0,{});
+    let response = parse(code,0,null);
     return response.parsed;
 }
 
 function parse(code, iterator, parsed, precedence, stopSymbols){
     let c = '';
-    let parseResponse = {};
+    let parseResponse = null;
     for(var i = iterator; i < code.length;i++){
         c = code[i];
         if(c == ' '){
@@ -820,13 +820,12 @@ function parse(code, iterator, parsed, precedence, stopSymbols){
 
         let parserMethodResponse = getParserMethod(code, i);
         let method = parserMethodResponse.method;
-        let thisParsingMethodSymbolId = parserMethodResponse.symbolId;
         let currentPrecedence = getCurrentPrecedenceByParserMethodId(parserMethodResponse.symbolId);
         if(precedence != null && currentPrecedence > precedence){
             return createParseResponse(parsed,iterator);
         }
 
-        parseResponse = method(code,i,parsed, precedence);
+        parseResponse = method(code,i,parsed, precedence, stopSymbols);
         parsed = parseResponse.parsed;
         i = parseResponse.iterator;
 
@@ -902,9 +901,10 @@ const stringParserMethodsMap  = {
     "'": parseString,
     "\"": parseString,
     ".": parseAccessor,
-    "(": parseFunction,
+    "(": parseEnclosing,
     "[": parseArrayAccessor,
-    "!": parseInversion
+    "!": parseInversion,
+    "+": parseAdd
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -931,10 +931,24 @@ function parseIdent(code, iterator){
     return createParseResponse(parsed, iterator);
 }
 
-function parseFunction(code, iterator,left){
+function parseEnclosing(code, iterator,left){
+    assertCurrentCharIs('(', code, iterator);
+    if(left != null){
+        return parseFunction(code, iterator, left);
+    }
+
+    iterator++;
+    const stopSymbols = [')'];
+    var insideEnclosingParsed = parse(code, iterator, null, null, stopSymbols);
+    iterator = insideEnclosingParsed.iterator;
+    iterator++;
+    const parsed = { type: nodeTypes.enclosing, insideEnclosing: insideEnclosingParsed.parsed };
+    return createParseResponse(parsed,iterator);
+}
+
+function parseFunction(code, iterator, left){
     var args = [];
     iterator++;
-    //count forward from current position, parse each seperated by comma
     let c = "";
     let didBreakOnEnclosedParams = false;
     let stopSymbols = [')',','];
@@ -980,6 +994,15 @@ function parseInversion(code, iterator){
     return createParseResponse(parsed, iterator);
 }
 
+function parseAdd(code, iterator, left, precedence, stopSymbols)
+{
+    assertCurrentCharIs('+',code,iterator);
+    iterator++;
+    const rightParsed = parse(code,iterator,null,null,stopSymbols);
+    const parsed = { type: nodeTypes.add, left: left, right: rightParsed.parsed};
+    return createParseResponse(parsed, rightParsed.iterator);
+}
+
 function assertCurrentCharIs(char,code,iterator){
     if(code[iterator] == char){
         return;
@@ -1013,7 +1036,9 @@ const nodeTypes = {
     identifier: "identifier",
     function: "function",
     arrayAccessor: "arrayAccessor",
-    inversion: "inversion"
+    inversion: "inversion",
+    add: "add",
+    enclosing: "enclosing"
 }
 
 const comparers = {
@@ -1107,6 +1132,12 @@ function evalNode(node, env){
     else if(node.type == nodeTypes.inversion){
         return evalInversion(node, env);
     }
+    else if(node.type == nodeTypes.enclosing){
+        return evalEnclosing(node, env);
+    }
+    else if(node.type == nodeTypes.add){
+        return evalAdd(node, env);
+    }
     else if(typeof node == 'number'){
         return node;
     }
@@ -1180,6 +1211,16 @@ function evalArrayAccessor(node, env){
 
 function evalInversion(node, env){
     return !evalNode(node.toInvert, env);
+}
+
+function evalEnclosing(node, env){
+    return evalNode(node.insideEnclosing, env);
+}
+
+function evalAdd(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left + right;
 }
 
 function evalIdentifier(node, env){
