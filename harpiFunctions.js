@@ -821,7 +821,7 @@ function parse(code, iterator, parsed, precedence, stopSymbols){
         let parserMethodResponse = getParserMethod(code, i);
         let method = parserMethodResponse.method;
         let currentPrecedence = getCurrentPrecedenceByParserMethodId(parserMethodResponse.symbolId);
-        if(precedence != null && currentPrecedence > precedence){
+        if(currentPrecedence != null && currentPrecedence < precedence){
             return createParseResponse(parsed,iterator);
         }
 
@@ -835,18 +835,19 @@ function parse(code, iterator, parsed, precedence, stopSymbols){
     return createParseResponse(parsed, iterator);
 }
 
-const defaultPrecedence = -1;
 function getCurrentPrecedenceByParserMethodId(symbolId){
-    if(symbolId == null){
-        return defaultPrecedence;
-    }
-
     const isComparer = Object.values(comparers).includes(symbolId);
     if(isComparer){
         return 0;
     }
+    if(symbolId == '+'){
+        return 1;
+    }
+    if(symbolId == '*'){
+        return 2;
+    }
 
-    return defaultPrecedence;
+    return null;
 }
 
 
@@ -867,9 +868,13 @@ function getParserMethod(code, iterator) {
         }
     }
     const noSymbolParserFound = method == null;
-    if(noSymbolParserFound){
+    if (noSymbolParserFound && validIdentifierChars.includes(c)) {
         return createParserMethodResponse(parseIdent, "");
     }
+    else if(noSymbolParserFound){
+        throwParseError("No parser method found for symbol: " + c);
+    }
+
     return createParserMethodResponse(method,methodKey);
 }
 
@@ -904,7 +909,8 @@ const stringParserMethodsMap  = {
     "(": parseEnclosing,
     "[": parseArrayAccessor,
     "!": parseInversion,
-    "+": parseAdd
+    "+": parseAdd,
+    "*": parseMultiply
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -996,10 +1002,19 @@ function parseInversion(code, iterator){
 
 function parseAdd(code, iterator, left, precedence, stopSymbols)
 {
-    assertCurrentCharIs('+',code,iterator);
+    return parseMathNodeType('+',nodeTypes.add, code, iterator, left, stopSymbols);
+}
+
+function parseMultiply(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('*',nodeTypes.multiply, code, iterator, left, stopSymbols);
+}
+
+function parseMathNodeType(symbol,nodeType, code,iterator,left,stopSymbols){
+    assertCurrentCharIs(symbol, code, iterator);
     iterator++;
-    const rightParsed = parse(code,iterator,null,null,stopSymbols);
-    const parsed = { type: nodeTypes.add, left: left, right: rightParsed.parsed};
+    precedence = getCurrentPrecedenceByParserMethodId(symbol);
+    const rightParsed = parse(code,iterator,null,precedence,stopSymbols);
+    const parsed = { type: nodeType, left: left, right: rightParsed.parsed};
     return createParseResponse(parsed, rightParsed.iterator);
 }
 
@@ -1038,6 +1053,7 @@ const nodeTypes = {
     arrayAccessor: "arrayAccessor",
     inversion: "inversion",
     add: "add",
+    multiply: "multiply",
     enclosing: "enclosing"
 }
 
@@ -1091,10 +1107,7 @@ function parseString(code, iterator){
 }
 
 function parseAccessor(code,iterator,left){
-    var accessorSymbol = code[iterator];
-    if(accessorSymbol != '.'){
-        throwParseError("Expected accesor symbol '.'");
-    }
+    assertCurrentCharIs('.', code, iterator);
     iterator++;
     const rightResponse = parse(code,iterator,left,-1);
     const right = rightResponse.parsed;
@@ -1137,6 +1150,9 @@ function evalNode(node, env){
     }
     else if(node.type == nodeTypes.add){
         return evalAdd(node, env);
+    }
+    else if(node.type == nodeTypes.multiply){
+        return evalMultiply(node, env);
     }
     else if(typeof node == 'number'){
         return node;
@@ -1222,6 +1238,13 @@ function evalAdd(node, env){
     const right = evalNode(node.right, env);
     return left + right;
 }
+
+function evalMultiply(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left * right;
+}
+
 
 function evalIdentifier(node, env){
     const identVal = node.value;

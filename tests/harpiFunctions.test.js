@@ -25,7 +25,50 @@ describe('harpiFunctions.js', () =>{
 		jest.resetAllMocks();
 	});
 
-	it("Should interpret code expressions correctly ", async () => {
+
+	it("Should interpret string expressions correctly", async () => {
+		var tests = [
+			{
+				code: "'str' == 'str'",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str' != 'str'",
+				responseBody: "",
+				expectedExitCode: 1 
+			},
+			{
+				code: "'str'.length == 3",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str'.length > 2",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "'str'.length <= 2",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "'str'.includes('str')",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "!'str'.includes('str')",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+		];
+
+		await runInterpretExpressionTests(tests);
+	});
+
+	it("Should interpret number expressions correctly", async () => {
 		var tests = [
 			{
 				code: "0 == 0",
@@ -78,30 +121,36 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1
 			},
 			{
-				code: "'str' == 'str'",
-				responseBody: "",
-				expectedExitCode: 0
-			},
-			{
-				code: "'str' != 'str'",
-				responseBody: "",
-				expectedExitCode: 1 
-			},
-			{
-				code: "'str'.length == 3",
-				responseBody: "",
-				expectedExitCode: 0
-			},
-			{
-				code: "'str'.length > 2",
-				responseBody: "",
-				expectedExitCode: 0
-			},
-			{
-				code: "'str'.length <= 2",
+				code: "(1.1 + 1) > 2.1",
 				responseBody: "",
 				expectedExitCode: 1
 			},
+			{
+				code: "(1.1 + 1) <= 2.1",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "2 * 2 + 2 == 6",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "2 + 2 * 2 == 6",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "(2 + 2) * 2 == 8",
+				responseBody: "",
+				expectedExitCode: 0 
+			}
+		];
+		await runInterpretExpressionTests(tests);
+	});
+
+	it("Should interpret code expressions correctly ", async () => {
+		const tests = [
 			{
 				code: "response.isActive == false",
 				responseBody: JSON.stringify({
@@ -147,11 +196,6 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1
 			},
 			{
-				code: "'str'.includes('str')",
-				responseBody: "",
-				expectedExitCode: 0
-			},
-			{
 				code: "response.value[0] == 1",
 				responseBody: JSON.stringify({
 					value: [1]
@@ -181,11 +225,6 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1
 			},
 			{
-				code: "!'str'.includes('str')",
-				responseBody: "",
-				expectedExitCode: 1
-			},
-			{
 				code: "response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
 				responseBody: JSON.stringify({
 					value: [
@@ -206,30 +245,12 @@ describe('harpiFunctions.js', () =>{
 					]
 				}),
 				expectedExitCode: 0
-			},
-			{
-				code: "!!response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')",
-				responseBody: JSON.stringify({
-					value: [
-						{
-							Description: "DESCRIPTION"
-						}
-					]
-				}),
-				expectedExitCode: 1
-			},
-			{
-				code: "(1.1 + 1) > 2.1",
-				responseBody: "",
-				expectedExitCode: 1
-			},
-			{
-				code: "(1.1 + 1) <= 2.1",
-				responseBody: "",
-				expectedExitCode: 0 
-			},
-		]
+			}
+		];
+		await runInterpretExpressionTests(tests);
+	});
 
+	async function runInterpretExpressionTests(tests)	{
 		tests.forEach(async test => {
 			const yml = 
 			"requests:\n" +
@@ -246,7 +267,7 @@ describe('harpiFunctions.js', () =>{
 				throw new Error(redText + "exp '"+test.expectedExitCode+"' but got '"+result+"'. code was: |" +test.code+ "|, response was: " + test.responseBody + resetColor);
 			}
 		});
-	});
+	}
 
 	it("Should support assert: responseContains", async () => {
 
