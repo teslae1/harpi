@@ -57,7 +57,14 @@ async function run(harpiYmlFileName,
         if (method == null) {
             throw "method is not specified for request " + i;
         }
-        const result = await executeRequestAsync(url, method, headers, request.jsonBody, request.formUrlEncodedBody, request.javascriptAssignments, insecure);
+        const result = await executeRequestAsync(url, 
+            method, 
+            headers, 
+            request.jsonBody, 
+            request.formUrlEncodedBody, 
+            request.javascriptAssignments, 
+            request.variableAssignments,
+            insecure);
         const assertResults = getAssertResults(request.asserts, result);
         totalAssertResults.push(...assertResults);
         printResult(result, assertResults, verbose);
@@ -263,7 +270,7 @@ const executableAssertMethods = {
                 success = eval(jsAssert.code);
             }
             catch(e){
-                console.log(e);
+                log(e);
                 results.push({
                     wasSuccess: false,
                     assertName: jsAssert.name,
@@ -280,7 +287,51 @@ const executableAssertMethods = {
     }
 
         return results;
-}
+    },
+
+    codeAsserts: function (asserts, response, assertName) {
+        try {
+
+            response = JSON.parse(response.body);
+        }
+        catch (e) {
+            response = response.body;
+        }
+
+        if (response == undefined) {
+            return {
+                wasSuccess: false,
+                assertName: assertName,
+                message: "response body is undefined"
+            }
+        }
+
+        let results = [];
+        for(var i = 0; i < asserts.length;i++){
+            const assert = asserts[i];
+            let success = false;
+            try{
+                success = tinyEval(assert.code, response);
+            }
+            catch(e){
+                log("Error happened trying to intepret code expression, if you are sure that your expression is valid consider reverting to using the unsafe 'javascriptAsserts' instead, error: " + e);
+                results.push({
+                    wasSuccess: false,
+                    assertName: assert.name,
+                    message: "javascript assert failed while trying to run injected code: " + e.message
+            });
+                continue;
+            }
+
+            results.push({
+                wasSuccess: success,
+                assertName: assert.name,
+                message: success == true ? "passed" : "code assert failed: " + assert.code
+            })
+        }
+
+        return results;
+    }
 }
 
 function getAssertResults(asserts, response){
@@ -601,7 +652,14 @@ const axoisSelfSignedCertificateErrorCode = "DEPTH_ZERO_SELF_SIGNED_CERT";
 
 let agent = undefined;
 
-async function executeRequestAsync(url, method, headers, jsonBody, formUrlEncodedBody, javascriptAssignments, insecure) {
+async function executeRequestAsync(url, 
+        method, 
+        headers, 
+        jsonBody, 
+        formUrlEncodedBody, 
+        javascriptAssignments, 
+        variableAssignments, 
+        insecure) {
     let result = {}
     let requestHeaders = {};
     if(headers != undefined){
@@ -653,9 +711,59 @@ async function executeRequestAsync(url, method, headers, jsonBody, formUrlEncode
     }
     const endTime = new Date().getTime();
     result.responseTime = endTime - startTime;
-    result.variableAssignments = getVariableAssignments(result.body, javascriptAssignments);
+
+    let javascriptVariableAssignments = getJavascriptAssignments(result.body, javascriptAssignments);
+    if(javascriptVariableAssignments == null){
+        javascriptVariableAssignments = [];
+    }
+    let tinyEvalVariableAssignments = getTinyEvalAssignments(result.body, variableAssignments);
+    if(tinyEvalVariableAssignments == null){
+        tinyEvalVariableAssignments = [];
+    }
+    result.variableAssignments = javascriptVariableAssignments.concat(tinyEvalVariableAssignments);
 
     return result;
+}
+
+function getTinyEvalAssignments(body, variableAssignments){
+    var assignments = [];
+    if(variableAssignments == null){
+        return assignments;
+    }
+    if(body == null){
+        return assignments;
+    }
+
+    let response = body;
+    try{
+        response = JSON.parse(body);
+    }
+    catch{
+    }
+
+    let assignment = {};
+    let evaluated = {};
+    for(var i = 0; i < variableAssignments.length;i++){
+        assignment = variableAssignments[i];
+        if(assignment.variableName == null){
+            throw new Error("Invalid variable assignment: expected each variable assignment to have 'variableName' defined");
+        }
+        if(assignment.code == null){
+            throw new Error("Invalid variable assignment: expected each variable assignment to have 'code' defined");
+        }
+        let evaluated = {};
+        try{
+            evaluated = tinyEval(assignment.code, response);
+        }
+        catch(e){
+            log("Error while trying to evaluate variable assignment for vairable with name: " + assignment.variableName + ", and code: " + assignment.code + ", error:" + e);
+            continue;
+        }
+
+        assignments.push(createVariableAssignment(assignment.variableName, evaluated));
+    }
+
+    return assignments;
 }
 
 function getDataAsStr(data){
@@ -674,16 +782,13 @@ function createSelfSignedCertificateErrorResult(){
     };
 }
 
-function getVariableAssignments(body, javascriptAssignments){
+function getJavascriptAssignments(body, javascriptAssignments){
     var assignments = [];
-    if(javascriptAssignments == undefined){
+    if(javascriptAssignments == null){
         return assignments;
     }
     let setSessionVariable = (key, value) => {
-        assignments.push({
-            key: key,
-            value: value,
-        });
+        assignments.push(createVariableAssignment(key, value));
     };
 
     let response = body;
@@ -704,6 +809,10 @@ function getVariableAssignments(body, javascriptAssignments){
     }
 
     return assignments;
+}
+
+function createVariableAssignment(key, value){
+    return {key: key, value: value};
 }
 
 async function ls(harpiYmlFile, verbose, variables){
@@ -747,6 +856,635 @@ function log(msg){
 
 function saveLogToFile(filePath){
      fileHandler.writeLogFileSync(filePath, logStr);
+}
+
+function tinyEval(code, response){
+    if(code == null){
+        throwParamError("code cannot be null");
+    }
+    var ast = getAst(code);
+    return evalAst(ast, response);
+}
+
+function getAst(code){
+    let response = parse(code,0,null);
+    return response.parsed;
+}
+
+function parse(code, iterator, parsed, scopePrecedence, stopSymbols){
+    let c = '';
+    let parseResponse = null;
+    for(var i = iterator; i < code.length;i++){
+        c = code[i];
+        if(c == ' '){
+            continue;
+        }
+        if(stopSymbols != null && stopSymbols.includes(c)){
+            return parseResponse;
+        }
+
+        let parserMethodResponse = getParserMethod(code, i);
+        let method = parserMethodResponse.method;
+        let currentPrecedence = getPrecedenceByParserMethodId(parserMethodResponse.symbolId);
+        if(currentPrecedence != null && currentPrecedence < scopePrecedence){
+            return createParseResponse(parsed,iterator);
+        }
+
+        parseResponse = method(code,i,parsed, scopePrecedence, stopSymbols);
+        parsed = parseResponse.parsed;
+        i = parseResponse.iterator;
+        iterator = i;
+    }
+
+    return createParseResponse(parsed, iterator);
+}
+
+function getPrecedenceByParserMethodId(symbolId){
+    const isAndOr = ['&&','||'].includes(symbolId);
+    if(isAndOr){
+        return 1;
+    }
+    const isComparer = Object.values(comparers).includes(symbolId);
+    if(isComparer){
+        return 2;
+    }
+    if(symbolId == '.'){
+        return 3;
+    }
+    if(symbolId == '+' || symbolId == '-'){
+        return 4;
+    }
+    if(symbolId == '*' || symbolId == '/'){
+        return 5;
+    }
+    if(symbolId == "new"){
+        return 6;
+    }
+
+    return null;
+}
+
+
+function getParserMethod(code, iterator) {
+    let method = null;
+    const c = code[iterator];
+    let methodKey = "";
+    for (var j = maxLenParserIdentifiers; j >= 0; j--) {
+        var tempI = iterator;
+        methodKey = c;
+        while (methodKey.length < j && tempI + 1 < code.length) {
+            tempI++;
+            methodKey += code[tempI];
+        }
+        method = stringParserMethodsMap[methodKey];
+        if (method != null) {
+            break;
+        }
+    }
+    const noSymbolParserFound = method == null;
+    if (noSymbolParserFound && validIdentifierChars.includes(c) || methodKey == "toString") {
+        return createParserMethodResponse(parseIdent, "");
+    }
+    else if(noSymbolParserFound){
+        throwParseError("No parser method found for symbol: " + c);
+    }
+
+    return createParserMethodResponse(method,methodKey);
+}
+
+function createParserMethodResponse(method,symbolIdentifier){
+    return {
+        method: method,
+        symbolId: symbolIdentifier
+    }
+}
+
+const maxLenParserIdentifiers = 3;
+const stringParserMethodsMap  = {
+    "0": parseNumber,
+    "1": parseNumber,
+    "2": parseNumber,
+    "3": parseNumber,
+    "4": parseNumber,
+    "5": parseNumber,
+    "6": parseNumber,
+    "7": parseNumber,
+    "8": parseNumber,
+    "9": parseNumber,
+    "==": parseComparison,
+    "!=": parseComparison,
+    ">": parseComparison,
+    ">=": parseComparison,
+    "<": parseComparison,
+    "<=": parseComparison,
+    "'": parseString,
+    "\"": parseString,
+    ".": parseAccessor,
+    "(": parseEnclosing,
+    "[": parseArrayAccessor,
+    "!": parseInversion,
+    "+": parseAdd,
+    "-": parseSubstract,
+    "*": parseMultiply,
+    "/": parseDivision,
+    "&&": parseAnd,
+    "||": parseOr,
+    "new": parseNew,
+}
+
+const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
+function parseIdent(code, iterator){
+    let identStr = "";
+    let c = "";
+    for(;iterator < code.length;iterator++){
+        c = code[iterator];
+        if(!validIdentifierChars.includes(c)){
+            break;
+        }
+        identStr += c;
+    }
+    if(c != " "){
+        iterator--;
+    }
+
+    if(identStr == "false" || identStr == "true"){
+        const val = identStr == "true";
+        return createParseResponse(val, iterator);
+    }
+    if(identStr == "null" || identStr == "undefined"){
+        const parsed = { type: nodeTypes.null };
+        return createParseResponse(parsed, iterator);
+    }
+
+    const parsed = {type: nodeTypes.identifier, value: identStr};
+    return createParseResponse(parsed, iterator);
+}
+
+function parseEnclosing(code, iterator, left, precedence, stopSymbols){
+    assertCurrentCharIs('(', code, iterator);
+    if(left != null){
+        return parseFunction(code, iterator, left, precedence, stopSymbols);
+    }
+
+    iterator++;
+    stopSymbols = [')'];
+    precedence = 0;
+    const insideEnclosingParsed = parse(code, iterator, null, precedence, stopSymbols);
+    iterator = insideEnclosingParsed.iterator;
+    iterator++;
+    const parsed = { type: nodeTypes.enclosing, insideEnclosing: insideEnclosingParsed.parsed };
+    return createParseResponse(parsed,iterator);
+}
+
+function parseFunction(code, iterator, left, precedence, stopSymbols){
+    var args = [];
+    iterator++;
+    let c = "";
+    let didBreakOnEnclosedParams = false;
+    stopSymbols = [')',','];
+    let argParseResponse = {};
+    for(;iterator<code.length;iterator++){
+        c = code[iterator];
+        if(c == ')'){
+            didBreakOnEnclosedParams = true;
+            break;
+        }
+        else if(c == ','){
+            continue;
+        }
+        argParseResponse = parse(code, iterator, null, null, stopSymbols);
+        args.push(argParseResponse.parsed);
+        iterator = argParseResponse.iterator;
+    }
+
+    if(!didBreakOnEnclosedParams){
+        throwParseError("Expected parse of args to end with enclosing function symbol");
+    }
+
+    const parsed = {type: nodeTypes.function, name: left, args: args};
+    return createParseResponse(parsed, iterator);
+}
+
+function parseArrayAccessor(code, iterator, left, precedence, stopSymbols){
+    assertCurrentCharIs("[",code,iterator);
+    iterator++;
+    stopSymbols = ["]"]
+    precedence = getPrecedenceByParserMethodId('.');
+    const indexAccessorValue =  parse(code,iterator,null,precedence,stopSymbols)
+    const parsed = { type: nodeTypes.arrayAccessor, array: left, accessorValue: indexAccessorValue.parsed };
+    iterator = indexAccessorValue.iterator;
+    iterator++;
+    assertCurrentCharIs("]", code, iterator);
+    return createParseResponse(parsed, iterator);
+}
+
+function parseInversion(code, iterator, left, precedence, stopSymbols){
+    assertCurrentCharIs("!", code, iterator);
+    iterator++;
+    const toInvert = parse(code,iterator,null,null,stopSymbols);
+    const parsed = { type: nodeTypes.inversion, toInvert: toInvert.parsed };
+    iterator = toInvert.iterator;
+    return createParseResponse(parsed, iterator);
+}
+
+function parseAdd(code, iterator, left, precedence, stopSymbols)
+{
+    return parseMathNodeType('+',nodeTypes.add, code, iterator, left, stopSymbols);
+}
+
+function parseSubstract(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('-',nodeTypes.subtract, code, iterator, left, stopSymbols);
+}
+
+function parseMultiply(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('*',nodeTypes.multiply, code, iterator, left, stopSymbols);
+}
+
+function parseDivision(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('/',nodeTypes.division, code, iterator, left, stopSymbols);
+}
+
+function parseAnd(code, iterator, left, precedence, stopSymbols){
+    return parseAndOr("&", nodeTypes.and, code, iterator, left, precedence, stopSymbols);
+}
+
+function parseOr(code, iterator, left, precedence, stopSymbols){
+    return parseAndOr("|", nodeTypes.or, code, iterator, left, precedence, stopSymbols);
+}
+
+function parseAndOr(symbol, nodeType, code, iterator, left, precedence, stopSymbols){
+    assertCurrentCharIs(symbol, code, iterator);
+    iterator++;
+    assertCurrentCharIs(symbol, code, iterator);
+    iterator++;
+    const rightParsedResponse = parse(code,iterator,null,precedence,stopSymbols);
+    const parsed = {type: nodeType, left: left, right: rightParsedResponse.parsed};
+    return createParseResponse(parsed, rightParsedResponse.iterator);
+}
+
+function parseNew(code, iterator, left, precedence, stopSymbols){
+    const assertAndGoBeyond = "new ";
+    for(var i = 0; i < assertAndGoBeyond.length;i++){
+        assertCurrentCharIs(assertAndGoBeyond[i],code,iterator + i);
+    }
+    iterator += assertAndGoBeyond.length;
+    precedence = getPrecedenceByParserMethodId("new");
+    var rightHandFunctionResponse = parse(code,iterator,null,precedence,stopSymbols);
+    var rightHandFunction = rightHandFunctionResponse.parsed;
+    if(rightHandFunction.type != nodeTypes.function){
+        throwParseError("error while parsing new: expected rigth hand side type to be function, but was: " + rightHandFunction.type);
+    }
+    const parsed = {type: nodeTypes.new, function: rightHandFunction };
+    return createParseResponse(parsed, rightHandFunctionResponse.iterator);
+}
+
+function parseMathNodeType(symbol,nodeType, code,iterator,left,stopSymbols){
+    assertCurrentCharIs(symbol, code, iterator);
+    iterator++;
+    precedence = getPrecedenceByParserMethodId(symbol);
+    const rightParsed = parse(code,iterator,null,precedence,stopSymbols);
+    const parsed = { type: nodeType, left: left, right: rightParsed.parsed};
+    return createParseResponse(parsed, rightParsed.iterator);
+}
+
+function assertCurrentCharIs(char,code,iterator){
+    if(code[iterator] == char){
+        return;
+    }
+
+    throwParseError("expected char to be '"+char+"' at index "+iterator+" but was: '"+code[iterator]+"'");
+}
+
+const numberChars = "0123456789.";
+function parseNumber(code, iterator){
+    let numbStr = "";
+    let newIteratorPos = 0;
+    for(var i= iterator;i < code.length;i++){
+        if(numberChars.includes(code[i]) == false){
+            break;
+        }
+        numbStr += code[i];
+        newIteratorPos = i;
+    }
+    if(numbStr.length < 1){
+        throw new ParseError("expected atleast 1 char in numbStr");
+    }
+
+    const parsed = Number(numbStr);
+    return createParseResponse(parsed,newIteratorPos);
+}
+
+const nodeTypes = {
+    comparer: "comparer",
+    accessor: "accessor",
+    identifier: "identifier",
+    function: "function",
+    arrayAccessor: "arrayAccessor",
+    inversion: "inversion",
+    add: "add",
+    multiply: "multiply",
+    enclosing: "enclosing",
+    division: "division",
+    subtract: "subtract",
+    and: "and",
+    or: "or",
+    null: "null",
+    new: "new"
+}
+
+const comparers = {
+    equals: "==",
+    notEquals: "!=",
+    greaterThan: ">",
+    greaterThanOrEquals: ">=",
+    lessThan: "<",
+    lessThanOrEquals: "<=",
+}
+
+function parseComparison(code, iterator, left, precedence, stopSymbols){
+    let comparerStr = "";
+    for(var i = iterator; i < code.length;i++){
+        if(code[i] == ' '){
+            break;
+        }
+        comparerStr += code[i];
+        iterator++;
+    }
+    if(!Object.values(comparers).includes(comparerStr)){
+        throwParseError("unsupported comparer: " + comparerStr);
+    }
+    precedence = getPrecedenceByParserMethodId(comparerStr);
+    const rightResponse = parse(code, iterator,null,precedence,stopSymbols);
+    const parsed = {type: nodeTypes.comparer, comparer: comparerStr, left: left, right: rightResponse.parsed };
+    return createParseResponse(parsed, rightResponse.iterator);
+}
+
+function parseString(code, iterator){
+    var startStrSymbol = code[iterator];
+    if(startStrSymbol != "'" && startStrSymbol != '"'){
+        throwParseError("Invalid string start symbol: "+startStrSymbol);
+    }
+    iterator++;
+    let didDetectEndOfStr = false;
+    let parsed = "";
+    while(iterator < code.length){
+        didDetectEndOfStr = code[iterator] == startStrSymbol;
+        if(didDetectEndOfStr){
+            break;
+        }
+        parsed += code[iterator];
+        iterator++;
+    }
+    if(!didDetectEndOfStr){
+        throwParseError("did not find expected string end symbol, expected to find: " + startStrSymbol);
+    }
+
+    return createParseResponse(parsed,iterator);
+}
+
+function parseAccessor(code, iterator, left, precedence, stopSymbols) {
+    assertCurrentCharIs('.', code, iterator);
+    iterator++;
+    precedence = getPrecedenceByParserMethodId('.');
+    const rightResponse = parse(code,iterator,left,precedence, stopSymbols);
+    const right = rightResponse.parsed;
+    const parsed = {type: nodeTypes.accessor, left: left, right: right};
+
+    return createParseResponse(parsed, rightResponse.iterator);
+}
+
+
+function evalAst(node, response){
+    var env = {
+        variables: {
+            response: response,
+            Object: Object
+        },
+        functions: {
+            Date: CreateDate
+        }
+    }
+    return evalNode(node, env);
+}
+
+function evalNode(node, env){
+    if(node.type == nodeTypes.comparer){
+        return evalComparer(node, env);
+    }
+    else if(node.type == nodeTypes.accessor){
+        return evalAccessor(node, env);
+    }
+    else if(node.type == nodeTypes.identifier){
+        return evalIdentifier(node, env);
+    }
+    else if(node.type == nodeTypes.function){
+        return evalFunction(node, env);
+    }
+    else if(node.type == nodeTypes.arrayAccessor){
+        return evalArrayAccessor(node, env);
+    }
+    else if(node.type == nodeTypes.inversion){
+        return evalInversion(node, env);
+    }
+    else if(node.type == nodeTypes.enclosing){
+        return evalEnclosing(node, env);
+    }
+    else if(node.type == nodeTypes.add){
+        return evalAdd(node, env);
+    }
+    else if(node.type == nodeTypes.subtract){
+        return evalSubtract(node, env);
+    }
+    else if(node.type == nodeTypes.multiply){
+        return evalMultiply(node, env);
+    }
+    else if(node.type == nodeTypes.division){
+        return evalDivision(node, env);
+    }
+    else if(node.type == nodeTypes.and){
+        return evalAnd(node, env);
+    }
+    else if(node.type == nodeTypes.or){
+        return evalOr(node, env);
+    }
+    else if(node.type == nodeTypes.new){
+        return evalNew(node, env);
+    }
+    else if (node.type == nodeTypes.null) {
+        return null;
+    }
+    else if(typeof node == 'number'){
+        return node;
+    }
+    else if(typeof node == "string"){
+        return node;
+    }
+    else if(typeof node == "boolean"){
+        return node;
+    }
+    else{
+        throwEvalError("unsupported node type for eval: " + node.type);
+    }
+}
+
+function evalComparer(node, env){
+    var comparer = node.comparer;
+    if(comparer == null){
+        throwEvalError("expected comparer to have value for node: " + node);
+    }
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    if(comparer == comparers.equals){
+        return left == right;
+    }
+    else if(comparer == comparers.notEquals){
+        return left != right;
+    }
+    else if(comparer == comparers.greaterThan){
+        return left > right;
+    }
+    else if(comparer == comparers.greaterThanOrEquals){
+        return left >= right;
+    }
+    else if(comparer == comparers.lessThan){
+        return left < right;
+    }
+    else if(comparer == comparers.lessThanOrEquals){
+        return left <= right;
+    }
+    else{
+        throwEvalError("unsupported comparer: " + comparer);
+    }
+}
+
+function evalAccessor(node, env){
+    const accessorScopeBeforeThisAccessor = env.currentAccessorScope;
+    env.currentAccessorScope = evalNode(node.left, env);
+    const response = evalNode(node.right, env);
+    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
+    return response;
+}
+
+function evalFunction(node, env){
+    var args = [];
+    const accessorScopeBeforeThisAccessor = env.currentAccessorScope;
+    env.currentAccessorScope = null;
+    for(var i = 0; i < node.args.length;i++){
+        args.push(evalNode(node.args[i], env));
+    }
+    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
+    const functionName = node.name.value;
+    const shouldHandleAsAccessor = env.currentAccessorScope != null;
+    if(shouldHandleAsAccessor){
+        return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
+    }
+    else if(env.functions.hasOwnProperty(functionName)){
+        return env.functions[functionName](args);
+    }
+    else{
+        throwEvalError("no supported function found by name: " + functionName);
+    }
+}
+
+function evalArrayAccessor(node, env){
+    const accessorVal = evalNode(node.accessorValue,env);
+    const array = evalNode(node.array,env);
+    return array[accessorVal];
+}
+
+function evalInversion(node, env){
+    return !evalNode(node.toInvert, env);
+}
+
+function evalEnclosing(node, env){
+    return evalNode(node.insideEnclosing, env);
+}
+
+function evalAdd(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left + right;
+}
+
+function evalSubtract(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left - right;
+}
+
+function evalMultiply(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left * right;
+}
+
+function evalDivision(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left / right;
+}
+
+function evalAnd(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left && right;
+}
+
+function evalOr(node, env){
+    const left = evalNode(node.left, env);
+    if(left){
+        return true;
+    }
+    const right = evalNode(node.right, env);
+    return left || right;
+}
+
+function evalNew(node, env){
+    const toInvoke = node.function;
+    if(toInvoke == null){
+        throwEvalError("eval new expects node.function to not be null");
+    }
+    return evalNode(toInvoke, env);
+}
+
+function evalIdentifier(node, env){
+    const identVal = node.value;
+    if(env.currentAccessorScope != null){
+        return env.currentAccessorScope[identVal];
+    }
+    const variableVal = env.variables[identVal];
+    if(variableVal == null){
+        throwEvalError("tried to access non-existing variable with key: " + identVal);
+    }
+
+    return variableVal;
+}
+
+function throwEvalError(msg){
+    throwErrorWithPrefix("eval error: ", msg);
+}
+
+function throwParseError(msg){
+    throwErrorWithPrefix("parser error: ", msg);
+}
+
+function throwParamError(msg){
+    throwErrorWithPrefix("param error: ", msg);
+}
+
+function throwErrorWithPrefix(prefix, msg){
+    throw new Error(prefix+msg);
+}
+
+function createParseResponse(parsed, iterator){
+    return {
+        iterator: iterator,
+        parsed: parsed
+    };
+}
+
+function CreateDate(arg){
+    return new Date(arg);
 }
 
 

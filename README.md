@@ -20,7 +20,7 @@ requests:
     url: "$(baseAddress)/api/data/$(itemId)"
     asserts:
       statusCodeEquals: 200
-      javascriptAsserts:
+      codeAsserts:
         - name: "has expected title" 
           code: "response.title == '$(itemTitle)'"
 ```
@@ -56,9 +56,9 @@ requests:
   - name: "create data with auto generated id"
     method: "post"
     url: "$(baseAddress)/api/data"
-    javascriptAssignments:
-      - name: "save id of created item"
-        code: "setSessionVariable('myResponseValue', response.id)"
+    variableAssignments:
+      - variableName: myResponseValue
+        code: "response.id"
 
   - name: "verify data now available at id"
     method: "get"
@@ -177,7 +177,8 @@ requests:
 ```
 
 ## all supported types of asserts
-Harpi supports a set of asserts and also supports you definning custom asserts in javascript.
+Harpi supports a set of asserts and also supports you definning custom asserts as 'codeAsserts". 
+codeAsserts have replaced "javascriptAsserts" since they are safer and evaluated using a minimal intepreter that does not allowed access to environment.
 ```yml
 variables:
   baseAddress: "https://test.com"
@@ -189,37 +190,8 @@ requests:
     asserts:
       statusCodeEquals: 200
       responseContains: "testTitle"
-      javascriptAsserts:
+      codeAsserts:
         - name: "assert first element has expected title"
           code: "response[0].title == 'testTitle'"
 
 ```
-
-## Using harpi as api content response comparison
-Harpi is intended to work with simple datatypes for dynamically assigned values and comparisons
-but does in some ways support comparing entire api responses by converting the responses 
-into simple datatypes and then comparing them. An example using base64 format to compare 
-an api's response exactly matches that of another:
-```yml
-variables:
-  api1Url: "https://api1.com"
-  api2Url: "https://api2.com"
-  
-requests:
-  - url: "$(api1Url)/search?query=123"
-    method: get
-    asserts:
-      statusCodeEquals: 200
-    javascriptAssignments:
-      - code: "setSessionVariable('response', btoa(JSON.stringify(response)))"
-        name: "saving first response as base64"
-
-  - url: "$(api2Url)/search?query=123"
-    method: get
-    asserts:
-      statusCodeEquals: 200
-      javascriptAsserts:
-        - code: "btoa(JSON.stringify(response)) == '$(response)'"
-          name: "responses are exactly the same"
-```
-
