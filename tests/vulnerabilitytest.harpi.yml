@@ -1,0 +1,12 @@
+variables:
+  baseUrl: required
+
+requests:
+  - url: "$(baseUrl)/item/1" #any url is fine- we test for injection
+    method: get
+    asserts:  
+      codeAsserts:
+        - name: "environment should NEVER be exposed via this code execution"
+          code: "process == null"
+    
+        

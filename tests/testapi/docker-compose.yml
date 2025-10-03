@@ -16,7 +16,7 @@ services:
       dockerfile: tests/testapi/HarpiDockerfile
     depends_on:
       - testapi
-    command: /bin/sh -c "cd /usr/src/harpi/tests && harpi run test -b --variables baseUrl=http://testapi:8080 && harpi run test_tinyeval -b --variables baseUrl=http://testapi:8080"
+    command: /bin/sh -c "cd /usr/src/harpi/tests && harpi run test -b --variables baseUrl=http://testapi:8080 && harpi run test_tinyeval -b --variables baseUrl=http://testapi:8080 && harpi run vulnerabilitytest -b --variables baseUrl=http://testapi:8080"
 
   
     
