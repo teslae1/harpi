@@ -9,9 +9,9 @@ requests:
     method: "get"
     asserts:
       statusCodeEquals: 200
-    javascriptAssignments:
-      - name: "Save the user id"
-        code: "setSessionVariable('userId', response.userId)"
+    variableAssignments:
+      - variableName: userId
+        code: "response.userId"
 
   - url: "$(baseAddress)users/$(userId)"
     name: "Verify corresponding user exists"
