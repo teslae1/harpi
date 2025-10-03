@@ -853,6 +853,9 @@ function getPrecedenceByParserMethodId(symbolId){
     if(symbolId == '*' || symbolId == '/'){
         return 5;
     }
+    if(symbolId == "new"){
+        return 6;
+    }
 
     return null;
 }
@@ -892,7 +895,7 @@ function createParserMethodResponse(method,symbolIdentifier){
     }
 }
 
-const maxLenParserIdentifiers = 8;
+const maxLenParserIdentifiers = 3;
 const stringParserMethodsMap  = {
     "0": parseNumber,
     "1": parseNumber,
@@ -922,7 +925,7 @@ const stringParserMethodsMap  = {
     "/": parseDivision,
     "&&": parseAnd,
     "||": parseOr,
-    "new Date": parseDate,
+    "new": parseNew,
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -996,11 +999,11 @@ function parseFunction(code, iterator, left){
     return createParseResponse(parsed, iterator);
 }
 
-function parseArrayAccessor(code, iterator, left){
+function parseArrayAccessor(code, iterator, left, precedence, stopSymbols){
     assertCurrentCharIs("[",code,iterator);
     iterator++;
-    const stopSymbols = ["]"]
-    const precedence = getPrecedenceByParserMethodId('.');
+    stopSymbols = ["]"]
+    precedence = getPrecedenceByParserMethodId('.');
     const indexAccessorValue =  parse(code,iterator,null,precedence,stopSymbols)
     const parsed = { type: nodeTypes.arrayAccessor, array: left, accessorValue: indexAccessorValue.parsed };
     iterator = indexAccessorValue.iterator;
@@ -1053,17 +1056,20 @@ function parseAndOr(symbol, nodeType, code, iterator, left, precedence, stopSymb
     return createParseResponse(parsed, rightParsedResponse.iterator);
 }
 
-function parseDate(code, iterator, left, precedence, stopSymbols){
-    //skip new date part
-    const toJumpOver = "new Date";
-    for(var i = 0;i<toJumpOver.length;i++){
-        assertCurrentCharIs(toJumpOver[i],code,iterator+i);
+function parseNew(code, iterator, left, precedence, stopSymbols){
+    const assertAndGoBeyond = "new ";
+    for(var i = 0; i < assertAndGoBeyond.length;i++){
+        assertCurrentCharIs(assertAndGoBeyond[i],code,iterator + i);
     }
-    iterator += toJumpOver.Length;
-    assertCurrentCharIs('(',code,iterator);
-    const parsedArgs = parseEnclosing(code,iterator,left,precedence,stopSymbols);
-    const parsed = {type: nodeTypes.date, args: parsedArgs};
-    return createParseResponse(parsed, iterator);
+    iterator += assertAndGoBeyond.length;
+    precedence = getPrecedenceByParserMethodId("new");
+    var rightHandFunctionResponse = parse(code,iterator,null,precedence,stopSymbols);
+    var rightHandFunction = rightHandFunctionResponse.parsed;
+    if(rightHandFunction.type != nodeTypes.function){
+        throwParseError("error while parsing new: expected rigth hand side type to be function, but was: " + rightHandFunction.type);
+    }
+    const parsed = {type: nodeTypes.new, function: rightHandFunction };
+    return createParseResponse(parsed, rightHandFunctionResponse.iterator);
 }
 
 function parseMathNodeType(symbol,nodeType, code,iterator,left,stopSymbols){
@@ -1117,7 +1123,7 @@ const nodeTypes = {
     and: "and",
     or: "or",
     null: "null",
-    date: "date"
+    new: "new"
 }
 
 const comparers = {
@@ -1170,11 +1176,11 @@ function parseString(code, iterator){
     return createParseResponse(parsed,iterator);
 }
 
-function parseAccessor(code,iterator,left){
+function parseAccessor(code, iterator, left, precedence, stopSymbols) {
     assertCurrentCharIs('.', code, iterator);
     iterator++;
-    const precedence = getPrecedenceByParserMethodId('.');
-    const rightResponse = parse(code,iterator,left,precedence, null);
+    precedence = getPrecedenceByParserMethodId('.');
+    const rightResponse = parse(code,iterator,left,precedence, stopSymbols);
     const right = rightResponse.parsed;
     const parsed = {type: nodeTypes.accessor, left: left, right: right};
 
@@ -1186,6 +1192,9 @@ function evalAst(node, response){
     var env = {
         variables: {
             response: response
+        },
+        functions: {
+            Date: CreateDate
         }
     }
     return evalNode(node, env);
@@ -1230,6 +1239,9 @@ function evalNode(node, env){
     }
     else if(node.type == nodeTypes.or){
         return evalOr(node, env);
+    }
+    else if(node.type == nodeTypes.new){
+        return evalNew(node, env);
     }
     else if (node.type == nodeTypes.null) {
         return null;
@@ -1292,11 +1304,16 @@ function evalFunction(node, env){
         args.push(evalNode(node.args[i], env));
     }
     const functionName = node.name.value;
-    if(env.currentAccessorScope == null){
-        throwEvalError("expected current accessor scope to be non-null when invoking function with name: " + functionName);
+    const shouldHandleAsAccessor = env.currentAccessorScope != null;
+    if(shouldHandleAsAccessor){
+        return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
     }
-
-    return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
+    else if(env.functions.hasOwnProperty(functionName)){
+        return env.functions[functionName](args);
+    }
+    else{
+        throwEvalError("no supported function found by name: " + functionName);
+    }
 }
 
 function evalArrayAccessor(node, env){
@@ -1352,6 +1369,14 @@ function evalOr(node, env){
     return left || right;
 }
 
+function evalNew(node, env){
+    const toInvoke = node.function;
+    if(toInvoke == null){
+        throwEvalError("eval new expects node.function to not be null");
+    }
+    return evalNode(toInvoke, env);
+}
+
 function evalIdentifier(node, env){
     const identVal = node.value;
     if(env.currentAccessorScope != null){
@@ -1386,6 +1411,10 @@ function createParseResponse(parsed, iterator){
         iterator: iterator,
         parsed: parsed
     };
+}
+
+function CreateDate(arg){
+    return new Date(arg);
 }
 
 

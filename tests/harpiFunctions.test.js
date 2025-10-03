@@ -394,6 +394,28 @@ describe('harpiFunctions.js', () =>{
 					]
 				),
 				expectedExitCode: 1
+			},
+			{
+				code: "Date(response[0].timeGenerated) > Date('2025-10-02T00:00:00.9625552+00:00')",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "Date(response[0].timeGenerated) < Date('2025-10-02T00:00:00.9625552+00:00')",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 1
 			}
 		];
 		await runInterpretExpressionTests(tests);
