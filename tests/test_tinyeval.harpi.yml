@@ -8,8 +8,7 @@ requests:
     method: post
     asserts:  
       statusCodeEquals: 200
-    codeAssignments:
-      - name: "Save id"
+    variableAssignments:
       - variableName: id
         code: response.id
   - url: "$(baseUrl)/item/$(id)"
