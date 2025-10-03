@@ -68,6 +68,32 @@ describe('harpiFunctions.js', () =>{
 		await runInterpretExpressionTests(tests);
 	});
 
+	it("Should interpret boolean expressions correctly", async () => {
+		var tests = [
+			{
+				code: "true",
+				responseBody: "",
+				expectedExitCode: 0
+			},
+			{
+				code: "false",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "true == false",
+				responseBody: "",
+				expectedExitCode: 1
+			},
+			{
+				code: "!true == false",
+				responseBody: "",
+				expectedExitCode: 0
+			}
+		];
+		await runInterpretExpressionTests(tests);
+	});
+
 	it("Should interpret number expressions correctly", async () => {
 		var tests = [
 			{
@@ -144,8 +170,46 @@ describe('harpiFunctions.js', () =>{
 				code: "(2 + 2) * 2 == 8",
 				responseBody: "",
 				expectedExitCode: 0 
-			}
+			},
+			{
+				code: "4 / 2 + 1 == 3",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "1 + 4 / 2 == 3",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "4 / (2 + 1) == 1.3333333333333333",
+				responseBody: "",
+
+				expectedExitCode: 0 
+			},
+			{
+				code: "4 / (2 - 1) == 4",
+				responseBody: "",
+
+				expectedExitCode: 0 
+			},
+			{
+				code: "0 == 0 && 2 == 2",
+				responseBody: "",
+				expectedExitCode: 0 
+			},
+			{
+				code: "0 == 1 && 2 == 2",
+				responseBody: "",
+				expectedExitCode: 1 
+			},
+			{
+				code: "0 == 1 || 2 == 2",
+				responseBody: "",
+				expectedExitCode: 0
+			},
 		];
+
 		await runInterpretExpressionTests(tests);
 	});
 
@@ -245,28 +309,119 @@ describe('harpiFunctions.js', () =>{
 					]
 				}),
 				expectedExitCode: 0
+			},
+			{
+				code: "(response.value[0].Description == null) || (response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION'))",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: "DESCRIPTION"
+						}
+					]
+				}),
+				expectedExitCode: 1
+			},
+			{
+				code: "(response.value[0].Description == null) || (response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION'))",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							Description: null
+						}
+					]
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.value[0].isActive == null || response.value[0].isActive == false",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							isActive: false
+						}
+					]
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.value[0].isActive == null && response.value[0].isActive == false",
+				responseBody: JSON.stringify({
+					value: [
+						{
+							isActive: false
+						}
+					]
+				}),
+				expectedExitCode: 1 
+			},
+			{
+				code: "response.includes('hi')",
+				responseBody: "hi there",
+				expectedExitCode: 0
+			},
+			{
+				code: "response.number.toString() == '1'",
+				responseBody: JSON.stringify({
+					number: 1
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.number.toString() == '2'",
+				responseBody: JSON.stringify({
+					number: 1
+				}),
+				expectedExitCode: 1
+			},
+			{
+				code: "new Date(response[0].timeGenerated) > new Date('2025-10-02T00:00:00.9625552+00:00')",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "new Date(response[0].timeGenerated) < new Date('2025-10-02T00:00:00.9625552+00:00')",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 1
 			}
 		];
 		await runInterpretExpressionTests(tests);
 	});
 
 	async function runInterpretExpressionTests(tests)	{
-		tests.forEach(async test => {
-			const yml = 
-			"requests:\n" +
-			"  - url: https://t.com\n" +
-			"    method: get\n" + 
-			"    asserts:\n" +
-			"      codeAsserts:\n" + 
-			"        - code: \""+test.code+"\"\n";
+		for (const test of tests) {
 
-			const result = await getSingleRunResultAsync(yml, test.responseBody);
-			if(result != test.expectedExitCode){
-    			const redText = '\x1b[31m';
-    			const resetColor = '\x1b[0m';
-				throw new Error(redText + "exp '"+test.expectedExitCode+"' but got '"+result+"'. code was: |" +test.code+ "|, response was: " + test.responseBody + resetColor);
+			const yml =
+				"requests:\n" +
+				"  - url: https://t.com\n" +
+				"    method: get\n" +
+				"    asserts:\n" +
+				"      codeAsserts:\n" +
+				"        - code: \"" + test.code + "\"\n";
+
+			let logStr = "";
+			var logFunction = (msg) => {
+				logStr += "\n" + msg;
 			}
-		});
+
+			const result = await getSingleRunResultAsync(yml, test.responseBody, logFunction);
+			if (result != test.expectedExitCode) {
+				const redText = '\x1b[31m';
+				const resetColor = '\x1b[0m';
+				throw new Error(redText + "exp '" + test.expectedExitCode + "' but got '" + result + "'. code was: |" + test.code + "|, response was: " + test.responseBody + "\n log: " + logStr + resetColor);
+			}
+		}
 	}
 
 	it("Should support assert: responseContains", async () => {
@@ -293,7 +448,7 @@ describe('harpiFunctions.js', () =>{
 		 expect(failedActResult).toEqual(1);
 	});
 
-	async function getSingleRunResultAsync(ymlStr, firstResponseBody)
+	async function getSingleRunResultAsync(ymlStr, firstResponseBody, logFunction)
 	{
 		const filename = "file";
 		fileHandler.readFileSync = jest.fn(file => ymlStr);
@@ -305,7 +460,7 @@ describe('harpiFunctions.js', () =>{
 				status: 200
 			})
 		});
-		return await run(filename,bail=true);
+		return await run(filename,null,true,null,null,true,false,logFunction);
 	}
 
 	it("Should send expected requests", async () => {
@@ -576,3 +731,160 @@ describe('harpiFunctions.js', () =>{
 
 function testLogFunction(msg){
 }
+
+
+
+`
+started new run for file at 02/10/2025, 07.54.33
+- request 
+  - id: 1
+  - url: https://t.com
+  - method: get- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 6 ms
+  - body: {
+          "isActive": false
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 6 ms
+  - body: {
+          "isActive": false
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.isActive != false\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "isActive": true
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "isActive": true
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.isActive != true\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "value": [
+                    {}
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "value": []
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.value.length > 0\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 4 ms
+  - body: {
+          "value": [
+                    1
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": "DESCRIPTION"
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": "DESCRIPTION"
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.value[0].Description.includes('DESCRIPTION') == false\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 5 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": "DESCRIPTION"
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION')\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 4 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": "DESCRIPTION"
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 4 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": "DESCRIPTION"
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: (response.value[0].Description == null) || (response.value[0].Description.includes('NOTINCLUDED_DESCRIPTION'))\x1b[0mDetected failed assert - stopping since bail- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 3 ms
+  - body: {
+          "value": [
+                    {
+                              "Description": null
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 3 ms
+  - body: {
+          "value": [
+                    {
+                              "isActive": false
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[32mpassed\x1b[0m- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 2 ms
+  - body: {
+          "value": [
+                    {
+                              "isActive": false
+                    }
+          ]
+}
+  - asserts
+    - undefined: \x1b[31mcode assert failed: response.value[0].isActive == null && response.value[0].isActive == false\x1b[0mDetected failed assert - stopping since bailTypeError: Cannot read properties of undefined (reading 'apply')- response
+  - statusCode: \x1b[32m200\x1b[0m
+  - responseTime: 1 ms
+  - body: {
+          "value": "hi there"
+}
+  - asserts
+    - undefined: \x1b[31mjavascript assert failed while trying to run injected code: Cannot read properties of undefined (reading 'apply')\x1b[0mDetected failed assert - stopping since bail`

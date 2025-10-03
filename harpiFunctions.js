@@ -263,7 +263,7 @@ const executableAssertMethods = {
                 success = eval(jsAssert.code);
             }
             catch(e){
-                console.log(e);
+                log(e);
                 results.push({
                     wasSuccess: false,
                     assertName: jsAssert.name,
@@ -307,7 +307,7 @@ const executableAssertMethods = {
                 success = tinyEval(assert.code, response);
             }
             catch(e){
-                console.log(e);
+                log(e);
                 results.push({
                     wasSuccess: false,
                     assertName: assert.name,
@@ -806,7 +806,7 @@ function getAst(code){
     return response.parsed;
 }
 
-function parse(code, iterator, parsed, precedence, stopSymbols){
+function parse(code, iterator, parsed, scopePrecedence, stopSymbols){
     let c = '';
     let parseResponse = null;
     for(var i = iterator; i < code.length;i++){
@@ -820,12 +820,12 @@ function parse(code, iterator, parsed, precedence, stopSymbols){
 
         let parserMethodResponse = getParserMethod(code, i);
         let method = parserMethodResponse.method;
-        let currentPrecedence = getCurrentPrecedenceByParserMethodId(parserMethodResponse.symbolId);
-        if(currentPrecedence != null && currentPrecedence < precedence){
+        let currentPrecedence = getPrecedenceByParserMethodId(parserMethodResponse.symbolId);
+        if(currentPrecedence != null && currentPrecedence < scopePrecedence){
             return createParseResponse(parsed,iterator);
         }
 
-        parseResponse = method(code,i,parsed, precedence, stopSymbols);
+        parseResponse = method(code,i,parsed, scopePrecedence, stopSymbols);
         parsed = parseResponse.parsed;
         i = parseResponse.iterator;
 
@@ -835,16 +835,23 @@ function parse(code, iterator, parsed, precedence, stopSymbols){
     return createParseResponse(parsed, iterator);
 }
 
-function getCurrentPrecedenceByParserMethodId(symbolId){
-    const isComparer = Object.values(comparers).includes(symbolId);
-    if(isComparer){
-        return 0;
-    }
-    if(symbolId == '+'){
+function getPrecedenceByParserMethodId(symbolId){
+    const isAndOr = ['&&','||'].includes(symbolId);
+    if(isAndOr){
         return 1;
     }
-    if(symbolId == '*'){
+    const isComparer = Object.values(comparers).includes(symbolId);
+    if(isComparer){
         return 2;
+    }
+    if(symbolId == '.'){
+        return 3;
+    }
+    if(symbolId == '+' || symbolId == '-'){
+        return 4;
+    }
+    if(symbolId == '*' || symbolId == '/'){
+        return 5;
     }
 
     return null;
@@ -868,7 +875,7 @@ function getParserMethod(code, iterator) {
         }
     }
     const noSymbolParserFound = method == null;
-    if (noSymbolParserFound && validIdentifierChars.includes(c)) {
+    if (noSymbolParserFound && validIdentifierChars.includes(c) || methodKey == "toString") {
         return createParserMethodResponse(parseIdent, "");
     }
     else if(noSymbolParserFound){
@@ -885,7 +892,7 @@ function createParserMethodResponse(method,symbolIdentifier){
     }
 }
 
-const maxLenParserIdentifiers = 3;
+const maxLenParserIdentifiers = 8;
 const stringParserMethodsMap  = {
     "0": parseNumber,
     "1": parseNumber,
@@ -910,7 +917,12 @@ const stringParserMethodsMap  = {
     "[": parseArrayAccessor,
     "!": parseInversion,
     "+": parseAdd,
-    "*": parseMultiply
+    "-": parseSubstract,
+    "*": parseMultiply,
+    "/": parseDivision,
+    "&&": parseAnd,
+    "||": parseOr,
+    "new Date": parseDate,
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -932,6 +944,10 @@ function parseIdent(code, iterator){
         const val = identStr == "true";
         return createParseResponse(val, iterator);
     }
+    if(identStr == "null" || identStr == "undefined"){
+        const parsed = { type: nodeTypes.null };
+        return createParseResponse(parsed, iterator);
+    }
 
     const parsed = {type: nodeTypes.identifier, value: identStr};
     return createParseResponse(parsed, iterator);
@@ -945,7 +961,8 @@ function parseEnclosing(code, iterator,left){
 
     iterator++;
     const stopSymbols = [')'];
-    var insideEnclosingParsed = parse(code, iterator, null, null, stopSymbols);
+    const precedence = 0;
+    const insideEnclosingParsed = parse(code, iterator, null, precedence, stopSymbols);
     iterator = insideEnclosingParsed.iterator;
     iterator++;
     const parsed = { type: nodeTypes.enclosing, insideEnclosing: insideEnclosingParsed.parsed };
@@ -983,7 +1000,8 @@ function parseArrayAccessor(code, iterator, left){
     assertCurrentCharIs("[",code,iterator);
     iterator++;
     const stopSymbols = ["]"]
-    const indexAccessorValue =  parse(code,iterator,null,null,stopSymbols)
+    const precedence = getPrecedenceByParserMethodId('.');
+    const indexAccessorValue =  parse(code,iterator,null,precedence,stopSymbols)
     const parsed = { type: nodeTypes.arrayAccessor, array: left, accessorValue: indexAccessorValue.parsed };
     iterator = indexAccessorValue.iterator;
     iterator++;
@@ -1005,14 +1023,53 @@ function parseAdd(code, iterator, left, precedence, stopSymbols)
     return parseMathNodeType('+',nodeTypes.add, code, iterator, left, stopSymbols);
 }
 
+function parseSubstract(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('-',nodeTypes.subtract, code, iterator, left, stopSymbols);
+}
+
 function parseMultiply(code, iterator, left, precedence, stopSymbols){
     return parseMathNodeType('*',nodeTypes.multiply, code, iterator, left, stopSymbols);
+}
+
+function parseDivision(code, iterator, left, precedence, stopSymbols){
+    return parseMathNodeType('/',nodeTypes.division, code, iterator, left, stopSymbols);
+}
+
+function parseAnd(code, iterator, left, precedence, stopSymbols){
+    return parseAndOr("&", nodeTypes.and, code, iterator, left, precedence, stopSymbols);
+}
+
+function parseOr(code, iterator, left, precedence, stopSymbols){
+    return parseAndOr("|", nodeTypes.or, code, iterator, left, precedence, stopSymbols);
+}
+
+function parseAndOr(symbol, nodeType, code, iterator, left, precedence, stopSymbols){
+    assertCurrentCharIs(symbol, code, iterator);
+    iterator++;
+    assertCurrentCharIs(symbol, code, iterator);
+    iterator++;
+    const rightParsedResponse = parse(code,iterator,null,precedence,stopSymbols);
+    const parsed = {type: nodeType, left: left, right: rightParsedResponse.parsed};
+    return createParseResponse(parsed, rightParsedResponse.iterator);
+}
+
+function parseDate(code, iterator, left, precedence, stopSymbols){
+    //skip new date part
+    const toJumpOver = "new Date";
+    for(var i = 0;i<toJumpOver.length;i++){
+        assertCurrentCharIs(toJumpOver[i],code,iterator+i);
+    }
+    iterator += toJumpOver.Length;
+    assertCurrentCharIs('(',code,iterator);
+    const parsedArgs = parseEnclosing(code,iterator,left,precedence,stopSymbols);
+    const parsed = {type: nodeTypes.date, args: parsedArgs};
+    return createParseResponse(parsed, iterator);
 }
 
 function parseMathNodeType(symbol,nodeType, code,iterator,left,stopSymbols){
     assertCurrentCharIs(symbol, code, iterator);
     iterator++;
-    precedence = getCurrentPrecedenceByParserMethodId(symbol);
+    precedence = getPrecedenceByParserMethodId(symbol);
     const rightParsed = parse(code,iterator,null,precedence,stopSymbols);
     const parsed = { type: nodeType, left: left, right: rightParsed.parsed};
     return createParseResponse(parsed, rightParsed.iterator);
@@ -1054,7 +1111,13 @@ const nodeTypes = {
     inversion: "inversion",
     add: "add",
     multiply: "multiply",
-    enclosing: "enclosing"
+    enclosing: "enclosing",
+    division: "division",
+    subtract: "subtract",
+    and: "and",
+    or: "or",
+    null: "null",
+    date: "date"
 }
 
 const comparers = {
@@ -1066,7 +1129,7 @@ const comparers = {
     lessThanOrEquals: "<=",
 }
 
-function parseComparison(code, iterator, left){
+function parseComparison(code, iterator, left, precedence, stopSymbols){
     let comparerStr = "";
     for(var i = iterator; i < code.length;i++){
         if(code[i] == ' '){
@@ -1078,7 +1141,8 @@ function parseComparison(code, iterator, left){
     if(!Object.values(comparers).includes(comparerStr)){
         throwParseError("unsupported comparer: " + comparerStr);
     }
-    const rightResponse = parse(code, iterator);
+    precedence = getPrecedenceByParserMethodId(comparerStr);
+    const rightResponse = parse(code, iterator,null,precedence,stopSymbols);
     const parsed = {type: nodeTypes.comparer, comparer: comparerStr, left: left, right: rightResponse.parsed };
     return createParseResponse(parsed, rightResponse.iterator);
 }
@@ -1109,7 +1173,8 @@ function parseString(code, iterator){
 function parseAccessor(code,iterator,left){
     assertCurrentCharIs('.', code, iterator);
     iterator++;
-    const rightResponse = parse(code,iterator,left,-1);
+    const precedence = getPrecedenceByParserMethodId('.');
+    const rightResponse = parse(code,iterator,left,precedence, null);
     const right = rightResponse.parsed;
     const parsed = {type: nodeTypes.accessor, left: left, right: right};
 
@@ -1151,8 +1216,23 @@ function evalNode(node, env){
     else if(node.type == nodeTypes.add){
         return evalAdd(node, env);
     }
+    else if(node.type == nodeTypes.subtract){
+        return evalSubtract(node, env);
+    }
     else if(node.type == nodeTypes.multiply){
         return evalMultiply(node, env);
+    }
+    else if(node.type == nodeTypes.division){
+        return evalDivision(node, env);
+    }
+    else if(node.type == nodeTypes.and){
+        return evalAnd(node, env);
+    }
+    else if(node.type == nodeTypes.or){
+        return evalOr(node, env);
+    }
+    else if (node.type == nodeTypes.null) {
+        return null;
     }
     else if(typeof node == 'number'){
         return node;
@@ -1239,22 +1319,43 @@ function evalAdd(node, env){
     return left + right;
 }
 
+function evalSubtract(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left - right;
+}
+
 function evalMultiply(node, env){
     const left = evalNode(node.left, env);
     const right = evalNode(node.right, env);
     return left * right;
 }
 
+function evalDivision(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left / right;
+}
+
+function evalAnd(node, env){
+    const left = evalNode(node.left, env);
+    const right = evalNode(node.right, env);
+    return left && right;
+}
+
+function evalOr(node, env){
+    const left = evalNode(node.left, env);
+    if(left){
+        return true;
+    }
+    const right = evalNode(node.right, env);
+    return left || right;
+}
 
 function evalIdentifier(node, env){
     const identVal = node.value;
     if(env.currentAccessorScope != null){
-        const val = env.currentAccessorScope[identVal];
-        if(val == undefined){
-            throwEvalError("Could not find variable '"+identVal+"' in current accessor scope");
-        }
-        return val;
-
+        return env.currentAccessorScope[identVal];
     }
     const variableVal = env.variables[identVal];
     if(variableVal == null){
