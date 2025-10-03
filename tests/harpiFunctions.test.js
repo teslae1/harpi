@@ -25,6 +25,41 @@ describe('harpiFunctions.js', () =>{
 		jest.resetAllMocks();
 	});
 
+	it("Should support variableAssignments using tinyeval", async () => {
+		const yml = "variables:\n" +
+			"  myDynamicVariable\n" +
+			"requests:\n" +
+			"  - url: t.com/api\n" +
+			"    method: get\n" +
+			"    variableAssignments:\n" +
+			"       - variableName: myDynamicVariable\n" +
+			"         code: 'response.number'";
+
+		const expectAssignment = 4;
+		const response = {number: expectAssignment};
+		const responseJson = JSON.stringify(response);
+		axios.mockImplementation(() => {
+			return Promise.resolve({
+				data: responseJson,
+				status: 200
+			})
+		});
+
+		fileHandler.addFileExtensionIfNone = jest.fn(file => file);
+		fileHandler.findHarpiYmlFile = jest.fn(file => file);
+		fileHandler.readFileSync = jest.fn(file => yml);
+		let actDynamicVariableAssignments = {};
+		fileHandler.saveNewSession = jest.fn((dynamicVariables, harpiFileDir, harpiFileName, logFunction) => actDynamicVariableAssignments = dynamicVariables);
+
+		const filename = "test";
+
+		await run(filename);
+
+		let actAssignment = actDynamicVariableAssignments["myDynamicVariable"];
+		expect(actAssignment).toEqual(expectAssignment);
+
+	});
+
 
 	it("Should interpret string expressions correctly", async () => {
 		var tests = [

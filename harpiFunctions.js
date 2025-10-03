@@ -57,7 +57,14 @@ async function run(harpiYmlFileName,
         if (method == null) {
             throw "method is not specified for request " + i;
         }
-        const result = await executeRequestAsync(url, method, headers, request.jsonBody, request.formUrlEncodedBody, request.javascriptAssignments, insecure);
+        const result = await executeRequestAsync(url, 
+            method, 
+            headers, 
+            request.jsonBody, 
+            request.formUrlEncodedBody, 
+            request.javascriptAssignments, 
+            request.variableAssignments,
+            insecure);
         const assertResults = getAssertResults(request.asserts, result);
         totalAssertResults.push(...assertResults);
         printResult(result, assertResults, verbose);
@@ -645,7 +652,14 @@ const axoisSelfSignedCertificateErrorCode = "DEPTH_ZERO_SELF_SIGNED_CERT";
 
 let agent = undefined;
 
-async function executeRequestAsync(url, method, headers, jsonBody, formUrlEncodedBody, javascriptAssignments, insecure) {
+async function executeRequestAsync(url, 
+        method, 
+        headers, 
+        jsonBody, 
+        formUrlEncodedBody, 
+        javascriptAssignments, 
+        variableAssignments, 
+        insecure) {
     let result = {}
     let requestHeaders = {};
     if(headers != undefined){
@@ -697,9 +711,59 @@ async function executeRequestAsync(url, method, headers, jsonBody, formUrlEncode
     }
     const endTime = new Date().getTime();
     result.responseTime = endTime - startTime;
-    result.variableAssignments = getVariableAssignments(result.body, javascriptAssignments);
+
+    let javascriptVariableAssignments = getJavascriptAssignments(result.body, javascriptAssignments);
+    if(javascriptVariableAssignments == null){
+        javascriptVariableAssignments = [];
+    }
+    let tinyEvalVariableAssignments = getTinyEvalAssignments(result.body, variableAssignments);
+    if(tinyEvalVariableAssignments == null){
+        tinyEvalVariableAssignments = [];
+    }
+    result.variableAssignments = javascriptVariableAssignments.concat(tinyEvalVariableAssignments);
 
     return result;
+}
+
+function getTinyEvalAssignments(body, variableAssignments){
+    var assignments = [];
+    if(variableAssignments == null){
+        return assignments;
+    }
+    if(body == null){
+        return assignments;
+    }
+
+    let response = body;
+    try{
+        response = JSON.parse(body);
+    }
+    catch{
+    }
+
+    let assignment = {};
+    let evaluated = {};
+    for(var i = 0; i < variableAssignments.length;i++){
+        assignment = variableAssignments[i];
+        if(assignment.variableName == null){
+            throw new Error("Invalid variable assignment: expected each variable assignment to have 'variableName' defined");
+        }
+        if(assignment.code == null){
+            throw new Error("Invalid variable assignment: expected each variable assignment to have 'code' defined");
+        }
+        let evaluated = {};
+        try{
+            evaluated = tinyEval(assignment.code, response);
+        }
+        catch(e){
+            log("Error while trying to evaluate variable assignment for vairable with name: " + assignment.variableName + ", and code: " + assignment.code + ", error:" + e);
+            continue;
+        }
+
+        assignments.push(createVariableAssignment(assignment.variableName, evaluated));
+    }
+
+    return assignments;
 }
 
 function getDataAsStr(data){
@@ -718,16 +782,13 @@ function createSelfSignedCertificateErrorResult(){
     };
 }
 
-function getVariableAssignments(body, javascriptAssignments){
+function getJavascriptAssignments(body, javascriptAssignments){
     var assignments = [];
-    if(javascriptAssignments == undefined){
+    if(javascriptAssignments == null){
         return assignments;
     }
     let setSessionVariable = (key, value) => {
-        assignments.push({
-            key: key,
-            value: value,
-        });
+        assignments.push(createVariableAssignment(key, value));
     };
 
     let response = body;
@@ -748,6 +809,10 @@ function getVariableAssignments(body, javascriptAssignments){
     }
 
     return assignments;
+}
+
+function createVariableAssignment(key, value){
+    return {key: key, value: value};
 }
 
 async function ls(harpiYmlFile, verbose, variables){
