@@ -1,0 +1,25 @@
+
+variables:
+  baseUrl: required
+  id: #set by first response
+
+requests:
+  - url: "$(baseUrl)/item"
+    method: post
+    asserts:  
+      statusCodeEquals: 200
+    codeAssignments:
+      - name: "Save id"
+      - variableName: id
+        code: response.id
+  - url: "$(baseUrl)/item/$(id)"
+    method: get
+    asserts:  
+      statusCodeEquals: 200
+      codeAsserts:
+        - name: "assert response contains expected content"
+          code: "response == 'Item found'"
+  - url: "$(baseUrl)/item/$(id)"
+    method: delete
+    asserts:  
+      statusCodeEquals: 200
