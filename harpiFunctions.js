@@ -314,7 +314,7 @@ const executableAssertMethods = {
                 success = tinyEval(assert.code, response);
             }
             catch(e){
-                log(e);
+                log("Error happened trying to intepret code expression, if you are sure that your expression is valid consider reverting to using the unsafe 'javascriptAsserts' instead, error: " + e);
                 results.push({
                     wasSuccess: false,
                     assertName: assert.name,
@@ -1048,6 +1048,9 @@ function parseFunction(code, iterator, left, precedence, stopSymbols){
         if(c == ')'){
             didBreakOnEnclosedParams = true;
             break;
+        }
+        else if(c == ','){
+            continue;
         }
         argParseResponse = parse(code, iterator, null, null, stopSymbols);
         args.push(argParseResponse.parsed);

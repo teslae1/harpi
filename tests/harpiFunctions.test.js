@@ -496,6 +496,33 @@ describe('harpiFunctions.js', () =>{
 					]
 				),
 				expectedExitCode: 1
+			},
+			{
+				code: "response.revisionResponsiblePersonEmail == null",
+				responseBody: JSON.stringify(
+					{
+						revisionResponsiblePersonEmail: null
+					}
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.incomingText.substring(0,8) == 'responseOTHERTEXT'.substring(0,8)",
+				responseBody: JSON.stringify(
+					{
+						incomingText: "responsetext"
+					}
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.incomingText.substring(0,9) == 'responseOTHERTEXT'.substring(0,9)",
+				responseBody: JSON.stringify(
+					{
+						incomingText: "responsetext"
+					}
+				),
+				expectedExitCode: 1
 			}
 		];
 		await runInterpretExpressionTests(tests);
