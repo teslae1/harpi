@@ -21,7 +21,7 @@ services:
       cd /usr/src/harpi/tests && 
       harpi run test -b --variables baseUrl=http://testapi:8080 && 
       harpi run test_tinyeval -b --variables baseUrl=http://testapi:8080 && 
-      (! harpi run test_script_trying_to_access_environment_and_fails -b --variables baseUrl=http://testapi:8080 || exitCode 1)
+      (! harpi run test_script_trying_to_access_environment_and_fails -b --variables baseUrl=http://testapi:8080 || exit 1)
       "
 
   
