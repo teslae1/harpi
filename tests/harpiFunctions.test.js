@@ -89,6 +89,11 @@ describe('harpiFunctions.js', () =>{
 				code: "!true == false",
 				responseBody: "",
 				expectedExitCode: 0
+			},
+			{
+				code: "(!true || false) == false",
+				responseBody: "",
+				expectedExitCode: 0
 			}
 		];
 		await runInterpretExpressionTests(tests);

@@ -956,15 +956,15 @@ function parseIdent(code, iterator){
     return createParseResponse(parsed, iterator);
 }
 
-function parseEnclosing(code, iterator,left){
+function parseEnclosing(code, iterator, left, precedence, stopSymbols){
     assertCurrentCharIs('(', code, iterator);
     if(left != null){
         return parseFunction(code, iterator, left);
     }
 
     iterator++;
-    const stopSymbols = [')'];
-    const precedence = 0;
+    stopSymbols = [')'];
+    precedence = 0;
     const insideEnclosingParsed = parse(code, iterator, null, precedence, stopSymbols);
     iterator = insideEnclosingParsed.iterator;
     iterator++;
@@ -972,12 +972,12 @@ function parseEnclosing(code, iterator,left){
     return createParseResponse(parsed,iterator);
 }
 
-function parseFunction(code, iterator, left){
+function parseFunction(code, iterator, left, precedence, stopSymbols){
     var args = [];
     iterator++;
     let c = "";
     let didBreakOnEnclosedParams = false;
-    let stopSymbols = [')',','];
+    stopSymbols = [')',','];
     let argParseResponse = {};
     for(;iterator<code.length;iterator++){
         c = code[iterator];
@@ -1012,10 +1012,10 @@ function parseArrayAccessor(code, iterator, left, precedence, stopSymbols){
     return createParseResponse(parsed, iterator);
 }
 
-function parseInversion(code, iterator){
+function parseInversion(code, iterator, left, precedence, stopSymbols){
     assertCurrentCharIs("!", code, iterator);
     iterator++;
-    const toInvert = parse(code,iterator);
+    const toInvert = parse(code,iterator,null,null,stopSymbols);
     const parsed = { type: nodeTypes.inversion, toInvert: toInvert.parsed };
     iterator = toInvert.iterator;
     return createParseResponse(parsed, iterator);
