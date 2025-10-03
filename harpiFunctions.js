@@ -828,7 +828,6 @@ function parse(code, iterator, parsed, scopePrecedence, stopSymbols){
         parseResponse = method(code,i,parsed, scopePrecedence, stopSymbols);
         parsed = parseResponse.parsed;
         i = parseResponse.iterator;
-
         iterator = i;
     }
 
@@ -959,7 +958,7 @@ function parseIdent(code, iterator){
 function parseEnclosing(code, iterator, left, precedence, stopSymbols){
     assertCurrentCharIs('(', code, iterator);
     if(left != null){
-        return parseFunction(code, iterator, left);
+        return parseFunction(code, iterator, left, precedence, stopSymbols);
     }
 
     iterator++;
@@ -993,7 +992,6 @@ function parseFunction(code, iterator, left, precedence, stopSymbols){
     if(!didBreakOnEnclosedParams){
         throwParseError("Expected parse of args to end with enclosing function symbol");
     }
-    iterator++;
 
     const parsed = {type: nodeTypes.function, name: left, args: args};
     return createParseResponse(parsed, iterator);
@@ -1191,7 +1189,8 @@ function parseAccessor(code, iterator, left, precedence, stopSymbols) {
 function evalAst(node, response){
     var env = {
         variables: {
-            response: response
+            response: response,
+            Object: Object
         },
         functions: {
             Date: CreateDate
@@ -1300,9 +1299,12 @@ function evalAccessor(node, env){
 
 function evalFunction(node, env){
     var args = [];
+    const accessorScopeBeforeThisAccessor = env.currentAccessorScope;
+    env.currentAccessorScope = null;
     for(var i = 0; i < node.args.length;i++){
         args.push(evalNode(node.args[i], env));
     }
+    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
     const functionName = node.name.value;
     const shouldHandleAsAccessor = env.currentAccessorScope != null;
     if(shouldHandleAsAccessor){

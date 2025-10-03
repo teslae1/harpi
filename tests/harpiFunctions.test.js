@@ -218,7 +218,33 @@ describe('harpiFunctions.js', () =>{
 		await runInterpretExpressionTests(tests);
 	});
 
-	it("Should interpret code expressions correctly ", async () => {
+	it("Should interpret object expressions correctly", async () => {
+		const tests = [
+			{
+				code: "Object.values(response).includes('val2')",
+				responseBody: JSON.stringify(
+					{
+						key1: "val1",
+						key2: "val2"
+					}
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "Object.values(response).includes('val256')",
+				responseBody: JSON.stringify(
+					{
+						key1: "val1",
+						key2: "val2"
+					}
+				),
+				expectedExitCode: 1 
+			}
+		];
+		await runInterpretExpressionTests(tests);
+	});
+
+	it("Should interpret response expressions correctly ", async () => {
 		const tests = [
 			{
 				code: "response.isActive == false",
@@ -263,6 +289,20 @@ describe('harpiFunctions.js', () =>{
 					value: []
 				}),
 				expectedExitCode: 1
+			},
+			{
+				code: "response.value.length == 5",
+				responseBody: JSON.stringify({
+					value: "mystr"
+				}),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.value.length < 5",
+				responseBody: JSON.stringify({
+					value: "mystr"
+				}),
+				expectedExitCode: 1 
 			},
 			{
 				code: "response.value[0] == 1",
