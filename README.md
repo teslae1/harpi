@@ -177,9 +177,9 @@ requests:
 ```
 
 ## all supported types of asserts
-Harpi supports a set of asserts and also supports you definning custom asserts as 'codeAsserts". 
+Harpi supports a set of asserts and also supports you defining custom asserts as 'codeAsserts". 
 codeAsserts have replaced "javascriptAsserts" since they are safer and evaluated using a minimal intepreter that does not allowed access to environment.
-The 'code' part of codeAsserts uses javascript like syntax that makes it possible to define custom expressions that are expected to evaluate to a boolean value.
+The 'code' part of codeAsserts uses javascript-like syntax that makes it possible to define custom expressions that are expected to evaluate to a boolean value.
 The 'response' is the object representing the current response. if the response was json then the available 'response' object is an object deserialized from that json.
 If it was not json then the object is just the response body represented as a string.
 ```yml
@@ -200,7 +200,7 @@ requests:
 ```
 The following is a list of examples that are supported by as code asserts 'code' blocks
 ```javascript
-Object.values(response).includes('val')
+code: "Object.values(response).includes('val')"
 ```
 ```javascript
 code: "response.isActive == false"
