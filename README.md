@@ -198,25 +198,74 @@ requests:
           code: "response[0].title == 'testTitle'"
 
 ```
-The following is a list of examples that are supported by as code asserts 'code' blocks
-```javascript
-code: "Object.values(response).includes('val')"
+The following is a list of examples that are supported by as code asserts 
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert text response includes value"
+          code: "Object.values(response).includes('val')"
 ```
-```javascript
-code: "response.isActive == false"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert element was inactive"
+          code: "response.isActive == false"
 ```
-```javascript
-code: "response.value.length > 0"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert value had length more than zero"
+          code: "response.value.length > 0"
 ```
-```javascript
-code: "response.value[0].Description.includes('desc')"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert first response had expected content inside of description"
+          code: "response.value[0].Description.includes('desc')"
 ```
-```javascript
-code: "(response.value[0].Description == null) || (response.value[0].Description.includes('desc'))"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert response first element description is either null or had expected content in description"
+          code: "(response.value[0].Description == null) || (response.value[0].Description.includes('desc'))"
 ```
-```javascript
-code: "new Date(response[0].timeGenerated) < new Date('2025-10-02T00:00:00.9625552+00:00')"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert first element had a time generated that was older than 2025-10-02"
+          code: "new Date(response[0].timeGenerated) < new Date('2025-10-02T00:00:00.9625552+00:00')"
 ```
-```javascript
-code: "response.incomingText.substring(0,8) == 'expsubtext'.substring(0,8)"
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert start of incomingText has the expected value"
+          code: "response.incomingText.substring(0,8) == 'expsubtext'.substring(0,8)"
 ```
