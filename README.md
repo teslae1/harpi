@@ -177,8 +177,11 @@ requests:
 ```
 
 ## all supported types of asserts
-Harpi supports a set of asserts and also supports you definning custom asserts as 'codeAsserts". 
+Harpi supports a set of asserts and also supports you defining custom asserts as 'codeAsserts". 
 codeAsserts have replaced "javascriptAsserts" since they are safer and evaluated using a minimal intepreter that does not allowed access to environment.
+The 'code' part of codeAsserts uses javascript-like syntax that makes it possible to define custom expressions that are expected to evaluate to a boolean value.
+The 'response' is the object representing the current response. if the response was json then the available 'response' object is an object deserialized from that json.
+If it was not json then the object is just the response body represented as a string.
 ```yml
 variables:
   baseAddress: "https://test.com"
@@ -194,4 +197,75 @@ requests:
         - name: "assert first element has expected title"
           code: "response[0].title == 'testTitle'"
 
+```
+The following is a list of examples that are supported by as code asserts 
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert text response includes value"
+          code: "Object.values(response).includes('val')"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert element was inactive"
+          code: "response.isActive == false"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert value had length more than zero"
+          code: "response.value.length > 0"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert first response had expected content inside of description"
+          code: "response.value[0].Description.includes('desc')"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert response first element description is either null or had expected content in description"
+          code: "(response.value[0].Description == null) || (response.value[0].Description.includes('desc'))"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert first element had a time generated that was older than 2025-10-02"
+          code: "new Date(response[0].timeGenerated) < new Date('2025-10-02T00:00:00.9625552+00:00')"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "Assert start of incomingText has the expected value"
+          code: "response.incomingText.substring(0,8) == 'expsubtext'.substring(0,8)"
 ```
