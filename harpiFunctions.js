@@ -1398,12 +1398,23 @@ function evalFunction(node, env){
     if(shouldHandleAsAccessor){
         return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
     }
-    else if(env.functions.hasOwnProperty(functionName)){
-        return env.functions[functionName](args);
+    
+    const envFunction = getEnvFunction(env, functionName);
+    if(envFunction != null){
+        return envFunction(args);
     }
-    else{
-        throwEvalError("no supported function found by name: " + functionName);
+
+    throwEvalError("no supported function found by name: " + functionName);
+}
+
+function getEnvFunction(env, functionName){
+    if(env == null){
+        return null;
     }
+    if(env.functions != null && env.functions.hasOwnProperty(functionName)){
+        return env.functions[functionName];
+    }
+    return getEnvFunction(env.parent, functionName);
 }
 
 function evalFunctionWithLampdaArgs(node, env){
@@ -1467,6 +1478,9 @@ function evalFilterLampdaFunction(arr, lampdaNode, parentEnv){
 }
 
 function createChildEnv(parentEnv, variables, functions){
+    if(functions == null){
+        functions = {};
+    }
     var childEnv = createEnv(variables, functions);
     childEnv.parent = parentEnv;
     return childEnv;

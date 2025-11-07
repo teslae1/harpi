@@ -611,7 +611,36 @@ describe('harpiFunctions.js', () =>{
 				),
 				expectedExitCode: 0
 			},
+			{
+				code: "response.some(r => r.isActive)",
+				responseBody: JSON.stringify(
+					[
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						}
+					]
+				),
+				expectedExitCode: 1
+			},
+			{
+				code: "response.some(r => new Date(r.timeGenerated).getTime() == new Date('2025-10-03T00:00:00.9625552+00:00').getTime())",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
 		];
+
 		await runInterpretExpressionTests(tests);
 	});
 

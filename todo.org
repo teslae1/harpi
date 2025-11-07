@@ -1,9 +1,10 @@
 
 support find and filter
 - [X] make tests pass
-- [-] consider support some
+- [X] consider support some
 - [ ] consider doing env access via function call do delegate parent recursive if none found
   - [ ] add test for this is we want it - where we access some thing thats defined in parent env 
+  - [ ] add test for other aswell
 
 - [ ] add to examples
 - [ ] merge
