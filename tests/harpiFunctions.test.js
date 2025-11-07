@@ -523,8 +523,143 @@ describe('harpiFunctions.js', () =>{
 					}
 				),
 				expectedExitCode: 1
-			}
+			},
+			{
+				code: "response.find(r => r.id == '1').children.length == 2 && response.find(r => r.id == '1').children[0] == 'firstChildVal'",
+				responseBody: JSON.stringify(
+					[
+						{
+							id: "1",
+							children: [
+								"firstChildVal",
+								"secondChildVal"
+							]
+						},
+						{
+							id: "2"
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.filter(r => r.title == 'commonTitle').length == 2",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "UNcommonTitle",
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.filter(r => r.title == 'commonTitle' && r.number == 4).length == 1",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+							number: 4
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "UNcommonTitle",
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "code: response.filter(r => r.title == 'commonTitle').length == 2",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						}
+					]
+				),
+				expectedExitCode: 1
+			},
+			{
+				code: "response.some(r => r.isActive)",
+				responseBody: JSON.stringify(
+					[
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						},
+						{
+							isActive: true
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.some(r => r.isActive)",
+				responseBody: JSON.stringify(
+					[
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						}
+					]
+				),
+				expectedExitCode: 1
+			},
+			{
+				code: "response.some(r => new Date(r.timeGenerated).getTime() == new Date('2025-10-03T00:00:00.9625552+00:00').getTime())",
+				responseBody: JSON.stringify(
+					[
+						{
+							timeGenerated: '2025-10-03T00:00:00.9625552+00:00'
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "response.data.find(r => r.number == response.bestNumber).id == 4",
+				responseBody: JSON.stringify(
+					{
+						bestNumber: 3,
+						data: [
+							{
+								id: 3,
+								number:2 
+							},
+							{
+								id: 4,
+								number: 3
+							}
+						]
+					}
+				),
+				expectedExitCode: 0
+			},
 		];
+
 		await runInterpretExpressionTests(tests);
 	});
 

@@ -257,7 +257,7 @@ requests:
     asserts:
       codeAsserts:
         - name: "Assert first element had a time generated that was older than 2025-10-02"
-          code: "new Date(response[0].timeGenerated) < new Date('2025-10-02T00:00:00.9625552+00:00')"
+          code: "new Date(response[0].timeGenerated).getTime() < new Date('2025-10-02T00:00:00.9625552+00:00').getTime()"
 ```
 ```yml
 requests:
@@ -268,4 +268,44 @@ requests:
       codeAsserts:
         - name: "Assert start of incomingText has the expected value"
           code: "response.incomingText.substring(0,8) == 'expsubtext'.substring(0,8)"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert array response has atleast one element that is active"
+          code: "response.some(r => r.isActive)"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert array response has atleast one element that is active"
+          code: "response.some(r => r.isActive)"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert array response has exactly two elements that are active"
+          code: "response.filter(r => r.isActive).length == 2"
+```
+```yml
+requests:
+  - name: "assert on response"
+    method: "get"
+    url: "$(baseAddress)/api/data/1"
+    asserts:
+      codeAsserts:
+        - name: "assert array response first active element has expected id"
+          code: "response.find(r => r.isActive).id == 1"
 ```
