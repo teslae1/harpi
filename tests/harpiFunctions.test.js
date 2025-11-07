@@ -523,6 +523,58 @@ describe('harpiFunctions.js', () =>{
 					}
 				),
 				expectedExitCode: 1
+			},
+			{
+				code: "response.find(r => r.id == '1').children.Length == 1 && response.find(r => r.id == '1').children[0] == 'firstChildVal'",
+				responseBody: JSON.stringify(
+					[
+						{
+							id: "1",
+							children: [
+								"firstChildVal",
+								"secondChildVal"
+							]
+						},
+						{
+							id: "2"
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "code: response.filter(r => r.title == 'commontitle').length == 2",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "UNcommonTitle",
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "code: response.filter(r => r.title == 'commontitle').length == 2",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "commonTitle",
+						}
+					]
+				),
+				expectedExitCode: 1
 			}
 		];
 		await runInterpretExpressionTests(tests);

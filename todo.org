@@ -1,0 +1,8 @@
+
+support find and filter
+- [ ] make tests pass
+- [ ] add to examples
+- [ ] merge
+- [ ] deploy new package
+- [ ] verify it works
+
