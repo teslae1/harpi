@@ -525,7 +525,7 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 1
 			},
 			{
-				code: "response.find(r => r.id == '1').children.Length == 1 && response.find(r => r.id == '1').children[0] == 'firstChildVal'",
+				code: "response.find(r => r.id == '1').children.length == 2 && response.find(r => r.id == '1').children[0] == 'firstChildVal'",
 				responseBody: JSON.stringify(
 					[
 						{
@@ -543,7 +543,7 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 0
 			},
 			{
-				code: "code: response.filter(r => r.title == 'commontitle').length == 2",
+				code: "response.filter(r => r.title == 'commonTitle').length == 2",
 				responseBody: JSON.stringify(
 					[
 						{
@@ -560,7 +560,25 @@ describe('harpiFunctions.js', () =>{
 				expectedExitCode: 0
 			},
 			{
-				code: "code: response.filter(r => r.title == 'commontitle').length == 2",
+				code: "response.filter(r => r.title == 'commonTitle' && r.number == 4).length == 1",
+				responseBody: JSON.stringify(
+					[
+						{
+							title: "commonTitle",
+							number: 4
+						},
+						{
+							title: "commonTitle",
+						},
+						{
+							title: "UNcommonTitle",
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
+			{
+				code: "code: response.filter(r => r.title == 'commonTitle').length == 2",
 				responseBody: JSON.stringify(
 					[
 						{
@@ -575,7 +593,24 @@ describe('harpiFunctions.js', () =>{
 					]
 				),
 				expectedExitCode: 1
-			}
+			},
+			{
+				code: "response.some(r => r.isActive)",
+				responseBody: JSON.stringify(
+					[
+						{
+							isActive: false
+						},
+						{
+							isActive: false
+						},
+						{
+							isActive: true
+						}
+					]
+				),
+				expectedExitCode: 0
+			},
 		];
 		await runInterpretExpressionTests(tests);
 	});

@@ -990,6 +990,7 @@ const stringParserMethodsMap  = {
     "&&": parseAnd,
     "||": parseOr,
     "new": parseNew,
+    "=>": parseLampda
 }
 
 const validIdentifierChars = "qwertyuiopåasdfghjklæøzxcvbnmQWERTYUIOPÅASDFGHJKLÆØZXCVBNM";
@@ -1138,6 +1139,19 @@ function parseNew(code, iterator, left, precedence, stopSymbols){
     return createParseResponse(parsed, rightHandFunctionResponse.iterator);
 }
 
+function parseLampda(code, iterator, left, precedence, stopSymbols){
+    //left is ident
+    assertCurrentCharIs('=', code, iterator);
+    iterator++;
+    assertCurrentCharIs('>', code, iterator);
+    iterator++;
+    //right hand side is body
+    const bodyParsedResponse = parse(code, iterator, null, precedence, stopSymbols);
+    var bodyParsed = bodyParsedResponse.parsed;
+    const parsed = {type: nodeTypes.lampda, left: left, body: bodyParsed };
+    return createParseResponse(parsed, bodyParsedResponse.iterator);
+}
+
 function parseMathNodeType(symbol,nodeType, code,iterator,left,stopSymbols){
     assertCurrentCharIs(symbol, code, iterator);
     iterator++;
@@ -1189,7 +1203,8 @@ const nodeTypes = {
     and: "and",
     or: "or",
     null: "null",
-    new: "new"
+    new: "new",
+    lampda: "lampda"
 }
 
 const comparers = {
@@ -1254,16 +1269,15 @@ function parseAccessor(code, iterator, left, precedence, stopSymbols) {
 }
 
 
-function evalAst(node, response){
-    var env = {
-        variables: {
-            response: response,
-            Object: Object
-        },
-        functions: {
-            Date: CreateDate
-        }
+function evalAst(node, response) {
+    const variables = {
+        response: response,
+        Object: Object
+    };
+    const functions = {
+        Date: CreateDate
     }
+    var env = createEnv(variables, functions)
     return evalNode(node, env);
 }
 
@@ -1366,14 +1380,20 @@ function evalAccessor(node, env){
 }
 
 function evalFunction(node, env){
+    const functionHasLampdaArg = node.args != null && node.args.some(a => a.type == nodeTypes.lampda);
+    if(functionHasLampdaArg){
+        return evalFunctionWithLampdaArgs(node, env);
+    }
+
     var args = [];
     const accessorScopeBeforeThisAccessor = env.currentAccessorScope;
+
     env.currentAccessorScope = null;
     for(var i = 0; i < node.args.length;i++){
         args.push(evalNode(node.args[i], env));
     }
-    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
     const functionName = node.name.value;
+    env.currentAccessorScope = accessorScopeBeforeThisAccessor;
     const shouldHandleAsAccessor = env.currentAccessorScope != null;
     if(shouldHandleAsAccessor){
         return env.currentAccessorScope[functionName].apply(env.currentAccessorScope, args);
@@ -1384,6 +1404,79 @@ function evalFunction(node, env){
     else{
         throwEvalError("no supported function found by name: " + functionName);
     }
+}
+
+function evalFunctionWithLampdaArgs(node, env){
+    const initialAccessorScope = env.currentAccessorScope;
+    if(initialAccessorScope == null){
+        throwEvalError("exp current accessor scope to be defined when evaluating function with lampda args, but was null");
+    }
+    if(node.args.length != 1){
+        throwEvalError("exp exactly one arg when evaluating function with lampda args - but was: " + node.args.length);
+    }
+
+    const lampdaArg = node.args[0];
+    const functionName = node.name.value;
+    if(functionName == "find"){
+        return evalFindLampdaFunction(initialAccessorScope, lampdaArg, env);
+    }
+    else if(functionName == "filter"){
+        return evalFilterLampdaFunction(initialAccessorScope, lampdaArg, env);
+    }
+    else if(functionName == "some"){
+        return evalFindLampdaFunction(initialAccessorScope, lampdaArg, env) != null;
+    }
+    else{
+        throwEvalError("unsupported lampda function: " + functionName);
+    }
+}
+
+function evalFindLampdaFunction(arr, lampdaNode, parentEnv) {
+    if (!Array.isArray(arr)) {
+        throwEvalError("exp current accessor scope to be array-type on function with name: " + functionName);
+    }
+    const singleArrItemEnvKey = lampdaNode.left.value;
+    for (let i = 0; i < arr.length; i++) {
+        const childEnvVariables = {};
+        childEnvVariables[singleArrItemEnvKey] = arr[i];
+        const singleLampdaExeEnv = createChildEnv(parentEnv, childEnvVariables);
+        const evaluated = evalNode(lampdaNode.body, singleLampdaExeEnv)
+        if (evaluated) {
+            return arr[i];
+        }
+    }
+    return null;
+}
+
+function evalFilterLampdaFunction(arr, lampdaNode, parentEnv){
+    if (!Array.isArray(arr)) {
+        throwEvalError("exp current accessor scope to be array-type on function with name: " + functionName);
+    }
+    const singleArrItemEnvKey = lampdaNode.left.value;
+    let filtered = [];
+    for (let i = 0; i < arr.length; i++) {
+        const childEnvVariables = {};
+        childEnvVariables[singleArrItemEnvKey] = arr[i];
+        const singleLampdaExeEnv = createChildEnv(parentEnv, childEnvVariables);
+        const evaluated = evalNode(lampdaNode.body, singleLampdaExeEnv)
+        if (evaluated) {
+            filtered.push(arr[i]);
+        }
+    }
+    return filtered;
+}
+
+function createChildEnv(parentEnv, variables, functions){
+    var childEnv = createEnv(variables, functions);
+    childEnv.parent = parentEnv;
+    return childEnv;
+}
+
+function createEnv(variables, functions){
+    return {
+        variables: variables,
+        functions: functions
+    };
 }
 
 function evalArrayAccessor(node, env){

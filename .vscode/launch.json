@@ -11,7 +11,7 @@
         "--testMatch",
         "**/tests/**/harpiFunctions.test.js",
         "-t",
-        "Should interpret number expressions correctly"
+        "Should interpret response expressions correctly "
       ],
       "console": "integratedTerminal",
       "internalConsoleOptions": "neverOpen"
