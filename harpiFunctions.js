@@ -1559,13 +1559,28 @@ function evalIdentifier(node, env){
     if(env.currentAccessorScope != null){
         return env.currentAccessorScope[identVal];
     }
-    const variableVal = env.variables[identVal];
+    const variableVal = getEnvVariableValue(env, identVal);
     if(variableVal == null){
         throwEvalError("tried to access non-existing variable with key: " + identVal);
     }
 
     return variableVal;
 }
+
+function getEnvVariableValue(env, variableName){
+    if(env == null){
+        return null;
+    }
+    if(env.variables == null){
+        return null;
+    }
+    const val = env.variables[variableName];
+    if(val != null){
+        return val;
+    }
+    return getEnvVariableValue(env.parent, variableName);
+}
+
 
 function throwEvalError(msg){
     throwErrorWithPrefix("eval error: ", msg);

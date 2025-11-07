@@ -639,6 +639,25 @@ describe('harpiFunctions.js', () =>{
 				),
 				expectedExitCode: 0
 			},
+			{
+				code: "response.data.find(r => r.number == response.bestNumber).id == 4",
+				responseBody: JSON.stringify(
+					{
+						bestNumber: 3,
+						data: [
+							{
+								id: 3,
+								number:2 
+							},
+							{
+								id: 4,
+								number: 3
+							}
+						]
+					}
+				),
+				expectedExitCode: 0
+			},
 		];
 
 		await runInterpretExpressionTests(tests);
